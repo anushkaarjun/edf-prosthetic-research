@@ -2,24 +2,8 @@
 
 import argparse
 
-from loguru import logger
-
-from change_me.config.definitions import DEFAULT_LOG_LEVEL, LogLevel
-from change_me.utils import setup_logger
-
-
-def main(
-    log_level: str = DEFAULT_LOG_LEVEL, stderr_level: str = DEFAULT_LOG_LEVEL
-) -> None:
-    """Run the main pipeline.
-
-    :param log_level: The log level to use.
-    :param stderr_level: The std err level to use.
-    :return: None
-    """
-    setup_logger(log_level=log_level, stderr_level=stderr_level)
-    logger.info("Hello, world!")
-
+from edf_ml_model.app import main
+from edf_ml_model.definitions import DEFAULT_LOG_LEVEL, LogLevel
 
 if __name__ == "__main__":  # pragma: no cover
     parser = argparse.ArgumentParser("Run the pipeline.")

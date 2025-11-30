@@ -3,8 +3,8 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from change_me.config.definitions import LogLevel
-from change_me.utils import setup_logger
+from edf_ml_model.definitions import LogLevel
+from edf_ml_model.utils import setup_logger
 
 
 def test_logger_init() -> None:

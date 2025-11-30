@@ -6,7 +6,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from change_me.config.definitions import (
+from edf_ml_model.definitions import (
     DATE_FORMAT,
     DEFAULT_LOG_FILENAME,
     DEFAULT_LOG_LEVEL,

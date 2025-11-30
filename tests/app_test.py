@@ -1,6 +1,6 @@
 """Test the main program."""
 
-from change_me.__main__ import main
+from edf_ml_model.app import main
 
 
 def test_main():
