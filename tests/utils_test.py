@@ -3,7 +3,7 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from edf_ml_model.config.definitions import LogLevel
+from edf_ml_model.definitions import LogLevel
 from edf_ml_model.utils import setup_logger
 
 

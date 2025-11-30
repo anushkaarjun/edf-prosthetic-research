@@ -1,43 +1,33 @@
 # EDF Prosthetic Research
-[![Coverage Status](https://coveralls.io/repos/github/TUM-Aries-Lab/template-python/badge.svg?branch=main)](https://coveralls.io/github/TUM-Aries-Lab/template-python?branch=main)
-![Docker Image CI](https://github.com/TUM-Aries-Lab/template-python/actions/workflows/ci.yml/badge.svg)
-
 Simple README.md for a Python project template.
-
-Do ***NOT*** clone this repository. Please use it as a template instead. This readme is just here to serve as a template for you to get started faster.
 
 ## Install
 To install the library run:
 
 ```bash
-pip install <your-package-name>
+pip install edf-ml-model
 ```
-
 OR
-
 ```bash
-pip install git+https://github.com/TUM-Aries-Lab/<your-package-name>.git@<specific-tag>
+pip install git+https://github.com/anushkaarjun/edf-ml-model.git@<specific-tag>
 ```
 
 ## Development
-0. Install [Poetry](https://python-poetry.org/docs/#installing-with-the-official-installer)
-1. Install [pyenv](https://github.com/pyenv/pyenv?tab=readme-ov-file#installation)
-2. ```pyenv install <desired-python-version>  # install the required python version```
-3. ```pyenv global <desired-python-version>  # set the required python version```
-4. ```git clone git@github.com:TUM-Aries-Lab/template-python.git```
-5. `make init` to create the virtual environment and install dependencies
-6. `make format` to format the code and check for errors
-7. `make test` to run the test suite
-8. `make clean` to delete the temporary files and directories
+0. Install [uv](https://docs.astral.sh/uv/getting-started/installation/) from Astral.
+1. `git clone git@github.com:anushkaarjun/edf-prosthetic-research.git`
+2. `make init` to create the virtual environment and install dependencies
+3. `make format` to format the code and check for errors
+4. `make test` to run the test suite
+5. `make clean` to delete the temporary files and directories
 
 ## Publishing
 It's super easy to publish your own packages on PyPI. To build and publish this package run:
 
 ```bash
-poetry build
-poetry publish  # make sure your version in pyproject.toml is updated
+uv build
+uv publish  # make sure your version in pyproject.toml is updated
 ```
-The package can then be found at: https://pypi.org/project/change-me
+The package can then be found at: https://pypi.org/project/edf-ml-model
 
 ## Module Usage
 ```python
@@ -45,7 +35,7 @@ The package can then be found at: https://pypi.org/project/change-me
 
 from loguru import logger
 
-from change_me import definitions
+from edf_ml_model import definitions
 
 def main() -> None:
     """Run a simple demonstration."""
@@ -59,3 +49,31 @@ if __name__ == "__main__":
 ```bash
 poetry run python -m edf_ml_model
 ```
+# Structure
+<!-- TREE-START -->
+```
+├── src
+│   └── edf_ml_model
+│       ├── __init__.py
+│       ├── __main__.py
+│       ├── app.py
+│       ├── definitions.py
+│       └── utils.py
+├── tests
+│   ├── __init__.py
+│   ├── app_test.py
+│   ├── conftest.py
+│   └── utils_test.py
+├── .gitignore
+├── .pre-commit-config.yaml
+├── .python-version
+├── CONTRIBUTING.md
+├── Dockerfile
+├── LICENSE
+├── Makefile
+├── README.md
+├── pyproject.toml
+├── repo_tree.py
+└── uv.lock
+```
+<!-- TREE-END -->

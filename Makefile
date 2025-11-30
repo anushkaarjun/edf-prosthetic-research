@@ -1,22 +1,20 @@
 SHELL := /bin/bash
 
-init:
-	python3 -m venv .venv
-	poetry install --with dev
-	poetry run pre-commit install
-	poetry env info
-	@echo "Created virtual environment"
+init:  # ENV SETUP
+	uv sync --all-groups
+	uv run pre-commit install
+	@echo "Environment initialized with uv."
 
 test:
-	poetry run pytest --cov=src/ --cov-report=term-missing --no-cov-on-fail --cov-report=xml --cov-fail-under=10
+	uv run pytest --cov=src --cov-report=term-missing --no-cov-on-fail --cov-report=xml --cov-fail-under=90
 	rm .coverage
 
 lint:
-	poetry run ruff format
-	poetry run ruff check --fix
+	uv run ruff format
+	uv run ruff check --fix
 
 typecheck:
-	poetry run mypy src/ tests/ --ignore-missing-imports
+	uv run pyright src
 
 format:
 	make lint
@@ -24,22 +22,25 @@ format:
 
 clean:
 	rm -rf .venv
-	rm -rf .mypy_cache
 	rm -rf .pytest_cache
 	rm -rf build/
 	rm -rf dist/
-	rm -rf juninit-pytest.xml
+	rm -rf junit-pytest.xml
 	rm -rf logs/*
 	find . -name ".coverage*" -delete
-	find . -name __pycache__ -exec rm -r {} +
+	find . -name "coverage.xml" -delete
+	find . -name "__pycache__" -exec rm -r {} +
 
 update:
-	poetry cache clear pypi --all
-	poetry update
+	uv sync --upgrade --all-groups
+	uv run pre-commit autoupdate
 
-docker:
-	docker build --no-cache -f Dockerfile -t change_me-smoke .
-	docker run --rm change_me-smoke
+update-deep:
+	uv cache clean pypi
+	make update
 
 app:
-	poetry run python -m edf_ml_model
+	uv run python -m edf_ml_model
+
+tree:
+	uv run python repo_tree.py --update-readme
