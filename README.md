@@ -57,5 +57,5 @@ if __name__ == "__main__":
 
 ## Program Usage
 ```bash
-poetry run python -m change_me
+poetry run python -m edf_ml_model
 ```

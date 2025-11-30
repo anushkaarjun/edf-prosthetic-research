@@ -42,4 +42,4 @@ docker:
 	docker run --rm change_me-smoke
 
 app:
-	poetry run python -m change_me
+	poetry run python -m edf_ml_model
