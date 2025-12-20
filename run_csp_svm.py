@@ -5,7 +5,9 @@ This is a simplified version of the notebook that can be run locally.
 """
 
 import os
+import sys
 import glob
+import argparse
 import numpy as np
 import mne
 from sklearn.model_selection import train_test_split
@@ -15,10 +17,10 @@ from mne.decoding import CSP
 import matplotlib.pyplot as plt
 
 # Configuration
-BASE_PATH = "/content/drive/MyDrive/files 2"  # Update this path
+DEFAULT_BASE_PATH = "/content/drive/MyDrive/files 2"  # Default for Colab
 MAX_SUBJECTS = 5
 target_sfreq = 250
-tmin, tmax = 0, 4
+tmin, tmax = -0.5, 4  # Include baseline period for baseline correction
 freq_low, freq_high = 8., 30.
 n_components = 8
 
@@ -39,9 +41,12 @@ def annotation_to_motion(code, run):
         return "Both Fists" if code == 1 else "Both Feet"
     return "Unknown"
 
-def main():
+def main(base_path=None):
+    if base_path is None:
+        base_path = DEFAULT_BASE_PATH
+    
     # Get subjects
-    subjects = sorted(glob.glob(f"{BASE_PATH}/S*"))[:MAX_SUBJECTS]
+    subjects = sorted(glob.glob(f"{base_path}/S*"))[:MAX_SUBJECTS]
     print(f"Using {len(subjects)} subjects: {[os.path.basename(s) for s in subjects]}")
     
     # Process data per subject
@@ -68,8 +73,11 @@ def main():
                 
                 epochs = mne.Epochs(raw, events, event_id=event_id,
                                     tmin=tmin, tmax=tmax,
-                                    baseline=(-0.5, 0),
+                                    baseline=(-0.5, 0),  # Baseline correction using pre-stimulus period
                                     preload=True, verbose=False)
+                
+                # After baseline correction, crop to task period (0-4s) for consistent signal length
+                epochs.crop(tmin=0, tmax=4)
                 
                 if len(epochs) == 0:
                     continue
@@ -94,7 +102,7 @@ def main():
     
     if len(subject_data) == 0:
         print("ERROR: No data processed. Check file paths and data availability.")
-        return
+        return None, None
     
     # Train models per subject
     subject_models = {}
@@ -186,19 +194,58 @@ def main():
     return overall_test_acc, subject_results
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Run CSP+SVM training and test accuracy")
+    parser.add_argument(
+        "--data-path",
+        type=str,
+        default=None,
+        help=f"Path to EDF data directory (default: {DEFAULT_BASE_PATH} for Colab, or specify local path)"
+    )
+    parser.add_argument(
+        "--max-subjects",
+        type=int,
+        default=5,
+        help="Maximum number of subjects to process (default: 5)"
+    )
+    
+    args = parser.parse_args()
+    BASE_PATH = args.data_path if args.data_path else DEFAULT_BASE_PATH
+    MAX_SUBJECTS = args.max_subjects
+    
     # Check if running in Colab
     if os.path.exists("/content"):
         print("Running in Google Colab environment")
     else:
-        print("Running locally - update BASE_PATH to point to your data")
-        print(f"Current BASE_PATH: {BASE_PATH}")
+        print("Running locally")
+    
+    if not os.path.exists(BASE_PATH):
+        print(f"\nERROR: Data path does not exist: {BASE_PATH}")
+        print("\nPlease provide the correct path to your EDF data files using --data-path")
+        print("Example: python run_csp_svm.py --data-path /path/to/your/data")
+        print("\nExpected directory structure:")
+        print("  BASE_PATH/")
+        print("    S001/")
+        print("      S001R01.edf")
+        print("      S001R02.edf")
+        print("      ...")
+        print("    S002/")
+        print("      ...")
+        sys.exit(1)
+    
+    print(f"Using data path: {BASE_PATH}")
+    print(f"Processing up to {MAX_SUBJECTS} subjects")
     
     try:
-        test_acc, results = main()
-        print(f"\n{'='*60}")
-        print(f"FINAL RESULT: Average Test Accuracy = {test_acc*100:.2f}%")
-        print(f"{'='*60}")
+        test_acc, results = main(BASE_PATH)
+        if test_acc is not None:
+            print(f"\n{'='*60}")
+            print(f"FINAL RESULT: Average Test Accuracy = {test_acc*100:.2f}%")
+            print(f"{'='*60}")
+        else:
+            print("\nFailed to process data. Please check the error messages above.")
+            sys.exit(1)
     except Exception as e:
         print(f"\nERROR: {e}")
         import traceback
         traceback.print_exc()
+        sys.exit(1)
