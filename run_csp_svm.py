@@ -135,9 +135,9 @@ def main(base_path=None):
             count = np.sum(y == idx)
             print(f"  {label}: {count} ({100*count/len(y):.1f}%)")
         
-        # Split data - use more training data for better performance
+        # Split data
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=0.15, random_state=42, stratify=y  # Changed from 0.2 to 0.15
+            X, y, test_size=0.2, random_state=42, stratify=y
         )
         
         print(f"Train: {X_train.shape[0]}, Test: {X_test.shape[0]}")
@@ -171,18 +171,14 @@ def main(base_path=None):
                 ('svm', SVC(kernel='rbf', probability=True, random_state=42))
             ])
             
-            # EXPANDED hyperparameter search for better accuracy
             param_grid = {
-                'csp__n_components': [8, 10, 12, 14, 16, 18, 20],  # More components
-                'svm__C': [0.1, 0.5, 1.0, 5.0, 10.0, 50.0, 100.0],  # Wider range
-                'svm__gamma': ['scale', 'auto', 0.001, 0.01, 0.1, 1.0]  # More options
+                'csp__n_components': [6, 8, 10],
+                'svm__C': [0.1, 1.0, 10.0],
+                'svm__gamma': ['scale', 'auto']
             }
             
-            print(f"  Searching expanded grid: {len(param_grid['csp__n_components'])} CSP × "
-                  f"{len(param_grid['svm__C'])} C × {len(param_grid['svm__gamma'])} gamma")
-            
-            grid_search = GridSearchCV(pipeline, param_grid, cv=5, scoring='accuracy', 
-                                     n_jobs=-1, verbose=1)  # 5-fold CV, verbose=1 for progress
+            grid_search = GridSearchCV(pipeline, param_grid, cv=3, scoring='accuracy', 
+                                     n_jobs=-1, verbose=0)
             grid_search.fit(X_train, y_train)
             
             # Use best model
