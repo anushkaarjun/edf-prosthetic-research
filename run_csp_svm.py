@@ -137,12 +137,19 @@ def main(base_path=None):
             count = np.sum(y == idx)
             print(f"  {label}: {count} ({100*count/len(y):.1f}%)")
         
-        # Split data
-        X_train, X_test, y_train, y_test = train_test_split(
+        # Split data into train, validation, and test sets
+        # First split: separate test set (20%)
+        X_temp, X_test, y_temp, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42, stratify=y
         )
         
-        print(f"Train: {X_train.shape[0]}, Test: {X_test.shape[0]}")
+        # Second split: separate train and validation from remaining data
+        # This gives us approximately 64% train, 16% validation, 20% test
+        X_train, X_val, y_train, y_val = train_test_split(
+            X_temp, y_temp, test_size=0.2, random_state=42, stratify=y_temp
+        )
+        
+        print(f"Train: {X_train.shape[0]}, Validation: {X_val.shape[0]}, Test: {X_test.shape[0]}")
         
         # Apply CSP
         print("Applying CSP preprocessing...")
@@ -161,9 +168,9 @@ def main(base_path=None):
         train_acc = svm.score(X_train_csp, y_train)
         test_acc = svm.score(X_test_csp, y_test)
         
-        # If accuracy is low, try GridSearchCV optimization
-        if test_acc < 0.80:
-            print(f"  Initial accuracy {test_acc*100:.2f}% < 80%, running GridSearchCV optimization...")
+        # If accuracy is low, try GridSearchCV optimization (using validation set for tuning)
+        if val_acc < 0.80:  # Use validation accuracy for threshold
+            print(f"  Validation accuracy {val_acc*100:.2f}% < 80%, running GridSearchCV optimization...")
             from sklearn.model_selection import GridSearchCV
             from sklearn.pipeline import Pipeline
             
@@ -179,27 +186,31 @@ def main(base_path=None):
                 'svm__gamma': ['scale', 'auto']
             }
             
+            # Use validation set for model selection in grid search
             grid_search = GridSearchCV(pipeline, param_grid, cv=3, scoring='accuracy', 
                                      n_jobs=-1, verbose=0)
             grid_search.fit(X_train, y_train)
             
-            # Use best model
+            # Evaluate best model on validation set
             best_model = grid_search.best_estimator_
             train_acc = best_model.score(X_train, y_train)
+            val_acc = best_model.score(X_val, y_val)
             test_acc = best_model.score(X_test, y_test)
             
             print(f"  Best parameters: {grid_search.best_params_}")
-            print(f"  Optimized accuracy: {test_acc*100:.2f}%")
+            print(f"  Optimized - Train: {train_acc*100:.2f}%, Val: {val_acc*100:.2f}%, Test: {test_acc*100:.2f}%")
             
-            # Extract components from pipeline and recompute test features
+            # Extract components from pipeline and recompute features
             csp = best_model.named_steps['csp']
             svm = best_model.named_steps['svm']
-            X_test_csp = csp.transform(X_test)  # Transform test data with optimized CSP
+            X_val_csp = csp.transform(X_val)
+            X_test_csp = csp.transform(X_test)
         else:
-            print(f"  Accuracy {test_acc*100:.2f}% >= 80%, using standard model")
+            print(f"  Validation accuracy {val_acc*100:.2f}% >= 80%, using standard model")
         
         print(f"\nSubject {subj} Results:")
         print(f"  Train Accuracy: {train_acc:.4f} ({train_acc*100:.2f}%)")
+        print(f"  Validation Accuracy: {val_acc:.4f} ({val_acc*100:.2f}%)")
         print(f"  Test Accuracy:  {test_acc:.4f} ({test_acc*100:.2f}%)")
         
         subject_models[subj] = {
@@ -210,7 +221,9 @@ def main(base_path=None):
         }
         subject_results[subj] = {
             'train_acc': train_acc,
+            'val_acc': val_acc,
             'test_acc': test_acc,
+            'y_val': y_val,
             'y_test': y_test,
             'y_pred': svm.predict(X_test_csp)
         }
@@ -219,15 +232,18 @@ def main(base_path=None):
     print(f"\n{'='*50}")
     print("OVERALL RESULTS")
     print(f"{'='*50}")
-    overall_test_acc = np.mean([r['test_acc'] for r in subject_results.values()])
     overall_train_acc = np.mean([r['train_acc'] for r in subject_results.values()])
+    overall_val_acc = np.mean([r['val_acc'] for r in subject_results.values()])
+    overall_test_acc = np.mean([r['test_acc'] for r in subject_results.values()])
     print(f"Average Train Accuracy: {overall_train_acc:.4f} ({overall_train_acc*100:.2f}%)")
+    print(f"Average Validation Accuracy: {overall_val_acc:.4f} ({overall_val_acc*100:.2f}%)")
     print(f"Average Test Accuracy:  {overall_test_acc:.4f} ({overall_test_acc*100:.2f}%)")
     
     if overall_test_acc >= 0.80:
         print(f"\n✓ TARGET ACHIEVED! Average test accuracy: {overall_test_acc*100:.2f}% (>= 80%)")
     else:
-        print(f"\n⚠ Below target (80%). Current: {overall_test_acc*100:.2f}%")
+        print(f"\n⚠ Below target (80%). Current test accuracy: {overall_test_acc*100:.2f}%")
+        print(f"  Validation accuracy: {overall_val_acc*100:.2f}% (used for hyperparameter tuning)")
     
     # Detailed per-subject results
     print(f"\n{'='*50}")
