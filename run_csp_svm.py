@@ -155,6 +155,7 @@ def main(base_path=None):
         print("Applying CSP preprocessing...")
         csp = CSP(n_components=n_components, reg=None, log=True, norm_trace=False)
         X_train_csp = csp.fit_transform(X_train, y_train)
+        X_val_csp = csp.transform(X_val)
         X_test_csp = csp.transform(X_test)
         
         print(f"CSP features shape: {X_train_csp.shape}")
@@ -164,9 +165,12 @@ def main(base_path=None):
         svm = SVC(kernel='rbf', C=1.0, gamma='scale', probability=True, random_state=42)
         svm.fit(X_train_csp, y_train)
         
-        # Evaluate initial model
+        # Evaluate initial model on all sets
         train_acc = svm.score(X_train_csp, y_train)
+        val_acc = svm.score(X_val_csp, y_val)
         test_acc = svm.score(X_test_csp, y_test)
+        
+        print(f"  Initial - Train: {train_acc*100:.2f}%, Val: {val_acc*100:.2f}%, Test: {test_acc*100:.2f}%")
         
         # If accuracy is low, try GridSearchCV optimization (using validation set for tuning)
         if val_acc < 0.80:  # Use validation accuracy for threshold
