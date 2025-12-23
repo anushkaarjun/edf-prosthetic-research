@@ -20,8 +20,9 @@ import matplotlib.pyplot as plt
 DEFAULT_BASE_PATH = "/content/drive/MyDrive/files 2"  # Default for Colab
 MAX_SUBJECTS = 5
 target_sfreq = 250
-tmin, tmax = -0.5, 4  # Include baseline period for baseline correction
+tmin, tmax = -0.5, 0.5  # Include baseline period (-0.5 to 0) and 0.5s task period
 freq_low, freq_high = 8., 30.
+EPOCH_WINDOW = 0.5  # Use 0.5 seconds of data for training
 n_components = 8
 
 # Import consolidated functions from data_utils (import directly to avoid dependency issues)
@@ -85,8 +86,9 @@ def main(base_path=None):
                                     baseline=(-0.5, 0),  # Baseline correction using pre-stimulus period
                                     preload=True, verbose=False)
                 
-                # After baseline correction, crop to task period (0-4s) for consistent signal length
-                epochs.crop(tmin=0, tmax=4)
+                # After baseline correction, crop to task period (0-0.5s) for consistent signal length
+                # This gives us exactly 125 samples at 250 Hz (0.5s * 250Hz = 125 samples)
+                epochs.crop(tmin=0, tmax=EPOCH_WINDOW)
                 
                 if len(epochs) == 0:
                     continue
