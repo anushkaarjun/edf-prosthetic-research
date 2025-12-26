@@ -1,0 +1,274 @@
+/Users/anushkaarjun/synopsys/edf-prosthetic-research/run_eegnet.py:143: RuntimeWarning: All epochs were dropped!
+You might need to alter reject/flat-criteria or drop bad channels to avoid this. You can use Epochs.plot_drop_log() to see which channels are responsible for the dropping of epochs.
+  epochs = mne.Epochs(
+/Users/anushkaarjun/synopsys/edf-prosthetic-research/run_eegnet.py:143: RuntimeWarning: All epochs were dropped!
+You might need to alter reject/flat-criteria or drop bad channels to avoid this. You can use Epochs.plot_drop_log() to see which channels are responsible for the dropping of epochs.
+  epochs = mne.Epochs(
+/Users/anushkaarjun/synopsys/edf-prosthetic-research/run_eegnet.py:143: RuntimeWarning: All epochs were dropped!
+You might need to alter reject/flat-criteria or drop bad channels to avoid this. You can use Epochs.plot_drop_log() to see which channels are responsible for the dropping of epochs.
+  epochs = mne.Epochs(
+/Users/anushkaarjun/synopsys/edf-prosthetic-research/run_eegnet.py:143: RuntimeWarning: All epochs were dropped!
+You might need to alter reject/flat-criteria or drop bad channels to avoid this. You can use Epochs.plot_drop_log() to see which channels are responsible for the dropping of epochs.
+  epochs = mne.Epochs(
+/Users/anushkaarjun/synopsys/edf-prosthetic-research/run_eegnet.py:143: RuntimeWarning: All epochs were dropped!
+You might need to alter reject/flat-criteria or drop bad channels to avoid this. You can use Epochs.plot_drop_log() to see which channels are responsible for the dropping of epochs.
+  epochs = mne.Epochs(
+/Users/anushkaarjun/synopsys/edf-prosthetic-research/run_eegnet.py:143: RuntimeWarning: All epochs were dropped!
+You might need to alter reject/flat-criteria or drop bad channels to avoid this. You can use Epochs.plot_drop_log() to see which channels are responsible for the dropping of epochs.
+  epochs = mne.Epochs(
+/Users/anushkaarjun/synopsys/edf-prosthetic-research/run_eegnet.py:143: RuntimeWarning: All epochs were dropped!
+You might need to alter reject/flat-criteria or drop bad channels to avoid this. You can use Epochs.plot_drop_log() to see which channels are responsible for the dropping of epochs.
+  epochs = mne.Epochs(
+/Users/anushkaarjun/synopsys/edf-prosthetic-research/run_eegnet.py:143: RuntimeWarning: All epochs were dropped!
+You might need to alter reject/flat-criteria or drop bad channels to avoid this. You can use Epochs.plot_drop_log() to see which channels are responsible for the dropping of epochs.
+  epochs = mne.Epochs(
+/Users/anushkaarjun/synopsys/edf-prosthetic-research/run_eegnet.py:143: RuntimeWarning: All epochs were dropped!
+You might need to alter reject/flat-criteria or drop bad channels to avoid this. You can use Epochs.plot_drop_log() to see which channels are responsible for the dropping of epochs.
+  epochs = mne.Epochs(
+/Users/anushkaarjun/synopsys/edf-prosthetic-research/run_eegnet.py:143: RuntimeWarning: All epochs were dropped!
+You might need to alter reject/flat-criteria or drop bad channels to avoid this. You can use Epochs.plot_drop_log() to see which channels are responsible for the dropping of epochs.
+  epochs = mne.Epochs(
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+/Library/Frameworks/Python.framework/Versions/3.13/lib/python3.13/site-packages/sklearn/metrics/_classification.py:1833: UndefinedMetricWarning: Precision is ill-defined and being set to 0.0 in labels with no predicted samples. Use `zero_division` parameter to control this behavior.
+  _warn_prf(average, modifier, f"{metric.capitalize()} is", result.shape[0])
+Using data path: /Users/anushkaarjun/Desktop/Outside of School/Prosethic Research Data/files 2
+Processing up to 5 subjects
+Using device: cpu
+Using 5 subjects: ['S001', 'S002', 'S003', 'S004', 'S005']
+
+=== Processing Subject S001 ===
+  Error processing S001R01.edf: epochs.Modifying data of epochs() can't run because this Epochs-object is empty. You might want to check Epochs.drop_log or Epochs.plot_drop_log() to see why epochs were dropped.
+  Error processing S001R02.edf: epochs.Modifying data of epochs() can't run because this Epochs-object is empty. You might want to check Epochs.drop_log or Epochs.plot_drop_log() to see why epochs were dropped.
+  Processed 348 epochs, shape (348, 64, 126)
+
+=== Processing Subject S002 ===
+  Error processing S002R01.edf: epochs.Modifying data of epochs() can't run because this Epochs-object is empty. You might want to check Epochs.drop_log or Epochs.plot_drop_log() to see why epochs were dropped.
+  Error processing S002R02.edf: epochs.Modifying data of epochs() can't run because this Epochs-object is empty. You might want to check Epochs.drop_log or Epochs.plot_drop_log() to see why epochs were dropped.
+  Processed 348 epochs, shape (348, 64, 126)
+
+=== Processing Subject S003 ===
+  Error processing S003R01.edf: epochs.Modifying data of epochs() can't run because this Epochs-object is empty. You might want to check Epochs.drop_log or Epochs.plot_drop_log() to see why epochs were dropped.
+  Error processing S003R02.edf: epochs.Modifying data of epochs() can't run because this Epochs-object is empty. You might want to check Epochs.drop_log or Epochs.plot_drop_log() to see why epochs were dropped.
+  Processed 348 epochs, shape (348, 64, 126)
+
+=== Processing Subject S004 ===
+  Error processing S004R01.edf: epochs.Modifying data of epochs() can't run because this Epochs-object is empty. You might want to check Epochs.drop_log or Epochs.plot_drop_log() to see why epochs were dropped.
+  Error processing S004R02.edf: epochs.Modifying data of epochs() can't run because this Epochs-object is empty. You might want to check Epochs.drop_log or Epochs.plot_drop_log() to see why epochs were dropped.
+  Processed 348 epochs, shape (348, 64, 126)
+
+=== Processing Subject S005 ===
+  Error processing S005R01.edf: epochs.Modifying data of epochs() can't run because this Epochs-object is empty. You might want to check Epochs.drop_log or Epochs.plot_drop_log() to see why epochs were dropped.
+  Error processing S005R02.edf: epochs.Modifying data of epochs() can't run because this Epochs-object is empty. You might want to check Epochs.drop_log or Epochs.plot_drop_log() to see why epochs were dropped.
+  Processed 348 epochs, shape (348, 64, 126)
+
+==================================================
+Training EEGNet for Subject S001
+==================================================
+Data shape: (348, 64, 126), Classes: ['Both Feet', 'Both Fists', 'Left Hand', 'Right Hand']
+Class distribution:
+  Both Feet: 90 (25.9%)
+  Both Fists: 84 (24.1%)
+  Left Hand: 84 (24.1%)
+  Right Hand: 90 (25.9%)
+Train: 278, Test: 70
+Model parameters: n_classes=4, n_channels=64, n_samples=126
+Training...
+Epoch [10/50], Loss: 1.3823, Train Acc: 25.90%, Test Acc: 25.71%
+Epoch [20/50], Loss: 1.3705, Train Acc: 29.14%, Test Acc: 25.71%
+Epoch [30/50], Loss: 1.3423, Train Acc: 37.41%, Test Acc: 25.71%
+Epoch [40/50], Loss: 1.3068, Train Acc: 41.01%, Test Acc: 25.71%
+Epoch [50/50], Loss: 1.2728, Train Acc: 46.76%, Test Acc: 25.71%
+
+Subject S001 Results:
+  Test Accuracy: 0.2571 (25.71%)
+
+==================================================
+Training EEGNet for Subject S002
+==================================================
+Data shape: (348, 64, 126), Classes: ['Both Feet', 'Both Fists', 'Left Hand', 'Right Hand']
+Class distribution:
+  Both Feet: 90 (25.9%)
+  Both Fists: 84 (24.1%)
+  Left Hand: 84 (24.1%)
+  Right Hand: 90 (25.9%)
+Train: 278, Test: 70
+Model parameters: n_classes=4, n_channels=64, n_samples=126
+Training...
+Epoch [10/50], Loss: 1.3867, Train Acc: 24.10%, Test Acc: 25.71%
+Epoch [20/50], Loss: 1.3797, Train Acc: 33.45%, Test Acc: 25.71%
+Epoch [30/50], Loss: 1.3521, Train Acc: 32.01%, Test Acc: 24.29%
+Epoch [40/50], Loss: 1.3081, Train Acc: 35.97%, Test Acc: 25.71%
+Epoch [50/50], Loss: 1.2862, Train Acc: 37.41%, Test Acc: 24.29%
+
+Subject S002 Results:
+  Test Accuracy: 0.2429 (24.29%)
+
+==================================================
+Training EEGNet for Subject S003
+==================================================
+Data shape: (348, 64, 126), Classes: ['Both Feet', 'Both Fists', 'Left Hand', 'Right Hand']
+Class distribution:
+  Both Feet: 90 (25.9%)
+  Both Fists: 84 (24.1%)
+  Left Hand: 84 (24.1%)
+  Right Hand: 90 (25.9%)
+Train: 278, Test: 70
+Model parameters: n_classes=4, n_channels=64, n_samples=126
+Training...
+Epoch [10/50], Loss: 1.3821, Train Acc: 25.90%, Test Acc: 25.71%
+Epoch [20/50], Loss: 1.3574, Train Acc: 33.45%, Test Acc: 25.71%
+Epoch [30/50], Loss: 1.3059, Train Acc: 34.53%, Test Acc: 24.29%
+Epoch [40/50], Loss: 1.2764, Train Acc: 39.57%, Test Acc: 24.29%
+Epoch [50/50], Loss: 1.2225, Train Acc: 42.81%, Test Acc: 24.29%
+
+Subject S003 Results:
+  Test Accuracy: 0.2429 (24.29%)
+
+==================================================
+Training EEGNet for Subject S004
+==================================================
+Data shape: (348, 64, 126), Classes: ['Both Feet', 'Both Fists', 'Left Hand', 'Right Hand']
+Class distribution:
+  Both Feet: 90 (25.9%)
+  Both Fists: 84 (24.1%)
+  Left Hand: 84 (24.1%)
+  Right Hand: 90 (25.9%)
+Train: 278, Test: 70
+Model parameters: n_classes=4, n_channels=64, n_samples=126
+Training...
+Epoch [10/50], Loss: 1.3880, Train Acc: 23.74%, Test Acc: 24.29%
+Epoch [20/50], Loss: 1.3793, Train Acc: 29.86%, Test Acc: 25.71%
+Epoch [30/50], Loss: 1.3467, Train Acc: 35.25%, Test Acc: 24.29%
+Epoch [40/50], Loss: 1.3182, Train Acc: 36.69%, Test Acc: 24.29%
+Epoch [50/50], Loss: 1.2278, Train Acc: 45.68%, Test Acc: 25.71%
+
+Subject S004 Results:
+  Test Accuracy: 0.2571 (25.71%)
+
+==================================================
+Training EEGNet for Subject S005
+==================================================
+Data shape: (348, 64, 126), Classes: ['Both Feet', 'Both Fists', 'Left Hand', 'Right Hand']
+Class distribution:
+  Both Feet: 90 (25.9%)
+  Both Fists: 84 (24.1%)
+  Left Hand: 84 (24.1%)
+  Right Hand: 90 (25.9%)
+Train: 278, Test: 70
+Model parameters: n_classes=4, n_channels=64, n_samples=126
+Training...
+Epoch [10/50], Loss: 1.3853, Train Acc: 28.06%, Test Acc: 25.71%
+Epoch [20/50], Loss: 1.3658, Train Acc: 32.73%, Test Acc: 25.71%
+Epoch [30/50], Loss: 1.3284, Train Acc: 33.81%, Test Acc: 25.71%
+Epoch [40/50], Loss: 1.3057, Train Acc: 34.89%, Test Acc: 25.71%
+Epoch [50/50], Loss: 1.2732, Train Acc: 39.93%, Test Acc: 24.29%
+
+Subject S005 Results:
+  Test Accuracy: 0.2429 (24.29%)
+
+==================================================
+OVERALL RESULTS
+==================================================
+Average Test Accuracy: 0.2486 (24.86%)
+
+⚠ Below target (80%). Current: 24.86%
+
+==================================================
+PER-SUBJECT DETAILS
+==================================================
+
+Subject S001: Test Accuracy = 25.71%
+              precision    recall  f1-score   support
+
+   Both Feet      0.257     1.000     0.409        18
+  Both Fists      0.000     0.000     0.000        17
+   Left Hand      0.000     0.000     0.000        17
+  Right Hand      0.000     0.000     0.000        18
+
+    accuracy                          0.257        70
+   macro avg      0.064     0.250     0.102        70
+weighted avg      0.066     0.257     0.105        70
+
+
+Subject S002: Test Accuracy = 24.29%
+              precision    recall  f1-score   support
+
+   Both Feet      0.000     0.000     0.000        18
+  Both Fists      0.000     0.000     0.000        17
+   Left Hand      0.243     1.000     0.391        17
+  Right Hand      0.000     0.000     0.000        18
+
+    accuracy                          0.243        70
+   macro avg      0.061     0.250     0.098        70
+weighted avg      0.059     0.243     0.095        70
+
+
+Subject S003: Test Accuracy = 24.29%
+              precision    recall  f1-score   support
+
+   Both Feet      0.000     0.000     0.000        18
+  Both Fists      0.000     0.000     0.000        17
+   Left Hand      0.243     1.000     0.391        17
+  Right Hand      0.000     0.000     0.000        18
+
+    accuracy                          0.243        70
+   macro avg      0.061     0.250     0.098        70
+weighted avg      0.059     0.243     0.095        70
+
+
+Subject S004: Test Accuracy = 25.71%
+              precision    recall  f1-score   support
+
+   Both Feet      0.257     1.000     0.409        18
+  Both Fists      0.000     0.000     0.000        17
+   Left Hand      0.000     0.000     0.000        17
+  Right Hand      0.000     0.000     0.000        18
+
+    accuracy                          0.257        70
+   macro avg      0.064     0.250     0.102        70
+weighted avg      0.066     0.257     0.105        70
+
+
+Subject S005: Test Accuracy = 24.29%
+              precision    recall  f1-score   support
+
+   Both Feet      0.000     0.000     0.000        18
+  Both Fists      0.000     0.000     0.000        17
+   Left Hand      0.243     1.000     0.391        17
+  Right Hand      0.000     0.000     0.000        18
+
+    accuracy                          0.243        70
+   macro avg      0.061     0.250     0.098        70
+weighted avg      0.059     0.243     0.095        70
+
+
+============================================================
+FINAL RESULT: Average Test Accuracy = 24.86%
+============================================================

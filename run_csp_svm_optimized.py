@@ -29,28 +29,9 @@ tmin, tmax = -0.5, 4
 freq_low, freq_high = 8., 30.
 n_components = 8  # Default, but grid search will try more
 
-# Import consolidated functions
+# Import consolidated utility functions
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
-try:
-    from edf_ml_model.data_utils import get_run_number, annotation_to_motion
-except ImportError:
-    def get_run_number(filepath):
-        name = os.path.basename(filepath)
-        if "R" in name:
-            try:
-                return int(name.split("R")[1].split(".")[0])
-            except (ValueError, IndexError):
-                return None
-        return None
-    
-    def annotation_to_motion(code, run):
-        if code == 0:
-            return "Rest"
-        if run in [3,4,7,8,11,12]:
-            return "Left Hand" if code == 1 else "Right Hand"
-        if run in [5,6,9,10,13,14]:
-            return "Both Fists" if code == 1 else "Both Feet"
-        return "Unknown"
+from edf_ml_model.data_utils import get_run_number, annotation_to_motion
 
 
 def main(base_path=None, use_lda=False, test_size=0.15):

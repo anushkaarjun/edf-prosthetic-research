@@ -22,34 +22,21 @@ MAX_SUBJECTS = 5
 target_sfreq = 250
 tmin, tmax = -0.5, 0.5  # Include baseline period (-0.5 to 0) and 0.5s task period
 freq_low, freq_high = 8., 30.
-EPOCH_WINDOW = 0.5  # Use 0.5 seconds of data for training
 n_components = 8
 
-# Import consolidated functions from data_utils (import directly to avoid dependency issues)
+# Import consolidated utility functions (direct import to avoid loguru dependency)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
 try:
     from edf_ml_model.data_utils import get_run_number, annotation_to_motion
 except ImportError:
-    # Fallback to local definitions if import fails
-    def get_run_number(filepath):
-        """Extract run number R01, R02..."""
-        name = os.path.basename(filepath)
-        if "R" in name:
-            try:
-                return int(name.split("R")[1].split(".")[0])
-            except (ValueError, IndexError):
-                return None
-        return None
-    
-    def annotation_to_motion(code, run):
-        """Map annotation codes to motion labels based on run number."""
-        if code == 0:
-            return "Rest"
-        if run in [3,4,7,8,11,12]:
-            return "Left Hand" if code == 1 else "Right Hand"
-        if run in [5,6,9,10,13,14]:
-            return "Both Fists" if code == 1 else "Both Feet"
-        return "Unknown"
+    # Fallback: import directly from file
+    import importlib.util
+    data_utils_path = os.path.join(os.path.dirname(__file__), "src", "edf_ml_model", "data_utils.py")
+    spec = importlib.util.spec_from_file_location("data_utils", data_utils_path)
+    data_utils = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(data_utils)
+    get_run_number = data_utils.get_run_number
+    annotation_to_motion = data_utils.annotation_to_motion
 
 def main(base_path=None):
     if base_path is None:
@@ -88,7 +75,7 @@ def main(base_path=None):
                 
                 # After baseline correction, crop to task period (0-0.5s) for consistent signal length
                 # This gives us exactly 125 samples at 250 Hz (0.5s * 250Hz = 125 samples)
-                epochs.crop(tmin=0, tmax=EPOCH_WINDOW)
+                epochs.crop(tmin=0, tmax=0.5)
                 
                 if len(epochs) == 0:
                     continue
@@ -137,25 +124,17 @@ def main(base_path=None):
             count = np.sum(y == idx)
             print(f"  {label}: {count} ({100*count/len(y):.1f}%)")
         
-        # Split data into train, validation, and test sets
-        # First split: separate test set (20%)
-        X_temp, X_test, y_temp, y_test = train_test_split(
+        # Split data
+        X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=0.2, random_state=42, stratify=y
         )
         
-        # Second split: separate train and validation from remaining data
-        # This gives us approximately 64% train, 16% validation, 20% test
-        X_train, X_val, y_train, y_val = train_test_split(
-            X_temp, y_temp, test_size=0.2, random_state=42, stratify=y_temp
-        )
-        
-        print(f"Train: {X_train.shape[0]}, Validation: {X_val.shape[0]}, Test: {X_test.shape[0]}")
+        print(f"Train: {X_train.shape[0]}, Test: {X_test.shape[0]}")
         
         # Apply CSP
         print("Applying CSP preprocessing...")
         csp = CSP(n_components=n_components, reg=None, log=True, norm_trace=False)
         X_train_csp = csp.fit_transform(X_train, y_train)
-        X_val_csp = csp.transform(X_val)
         X_test_csp = csp.transform(X_test)
         
         print(f"CSP features shape: {X_train_csp.shape}")
@@ -165,16 +144,13 @@ def main(base_path=None):
         svm = SVC(kernel='rbf', C=1.0, gamma='scale', probability=True, random_state=42)
         svm.fit(X_train_csp, y_train)
         
-        # Evaluate initial model on all sets
+        # Evaluate initial model
         train_acc = svm.score(X_train_csp, y_train)
-        val_acc = svm.score(X_val_csp, y_val)
         test_acc = svm.score(X_test_csp, y_test)
         
-        print(f"  Initial - Train: {train_acc*100:.2f}%, Val: {val_acc*100:.2f}%, Test: {test_acc*100:.2f}%")
-        
-        # If accuracy is low, try GridSearchCV optimization (using validation set for tuning)
-        if val_acc < 0.80:  # Use validation accuracy for threshold
-            print(f"  Validation accuracy {val_acc*100:.2f}% < 80%, running GridSearchCV optimization...")
+        # If accuracy is low, try GridSearchCV optimization
+        if test_acc < 0.80:
+            print(f"  Initial accuracy {test_acc*100:.2f}% < 80%, running GridSearchCV optimization...")
             from sklearn.model_selection import GridSearchCV
             from sklearn.pipeline import Pipeline
             
@@ -190,31 +166,27 @@ def main(base_path=None):
                 'svm__gamma': ['scale', 'auto']
             }
             
-            # Use validation set for model selection in grid search
             grid_search = GridSearchCV(pipeline, param_grid, cv=3, scoring='accuracy', 
                                      n_jobs=-1, verbose=0)
             grid_search.fit(X_train, y_train)
             
-            # Evaluate best model on validation set
+            # Use best model
             best_model = grid_search.best_estimator_
             train_acc = best_model.score(X_train, y_train)
-            val_acc = best_model.score(X_val, y_val)
             test_acc = best_model.score(X_test, y_test)
             
             print(f"  Best parameters: {grid_search.best_params_}")
-            print(f"  Optimized - Train: {train_acc*100:.2f}%, Val: {val_acc*100:.2f}%, Test: {test_acc*100:.2f}%")
+            print(f"  Optimized accuracy: {test_acc*100:.2f}%")
             
-            # Extract components from pipeline and recompute features
+            # Extract components from pipeline and recompute test features
             csp = best_model.named_steps['csp']
             svm = best_model.named_steps['svm']
-            X_val_csp = csp.transform(X_val)
-            X_test_csp = csp.transform(X_test)
+            X_test_csp = csp.transform(X_test)  # Transform test data with optimized CSP
         else:
-            print(f"  Validation accuracy {val_acc*100:.2f}% >= 80%, using standard model")
+            print(f"  Accuracy {test_acc*100:.2f}% >= 80%, using standard model")
         
         print(f"\nSubject {subj} Results:")
         print(f"  Train Accuracy: {train_acc:.4f} ({train_acc*100:.2f}%)")
-        print(f"  Validation Accuracy: {val_acc:.4f} ({val_acc*100:.2f}%)")
         print(f"  Test Accuracy:  {test_acc:.4f} ({test_acc*100:.2f}%)")
         
         subject_models[subj] = {
@@ -225,9 +197,7 @@ def main(base_path=None):
         }
         subject_results[subj] = {
             'train_acc': train_acc,
-            'val_acc': val_acc,
             'test_acc': test_acc,
-            'y_val': y_val,
             'y_test': y_test,
             'y_pred': svm.predict(X_test_csp)
         }
@@ -236,18 +206,15 @@ def main(base_path=None):
     print(f"\n{'='*50}")
     print("OVERALL RESULTS")
     print(f"{'='*50}")
-    overall_train_acc = np.mean([r['train_acc'] for r in subject_results.values()])
-    overall_val_acc = np.mean([r['val_acc'] for r in subject_results.values()])
     overall_test_acc = np.mean([r['test_acc'] for r in subject_results.values()])
+    overall_train_acc = np.mean([r['train_acc'] for r in subject_results.values()])
     print(f"Average Train Accuracy: {overall_train_acc:.4f} ({overall_train_acc*100:.2f}%)")
-    print(f"Average Validation Accuracy: {overall_val_acc:.4f} ({overall_val_acc*100:.2f}%)")
     print(f"Average Test Accuracy:  {overall_test_acc:.4f} ({overall_test_acc*100:.2f}%)")
     
     if overall_test_acc >= 0.80:
         print(f"\n✓ TARGET ACHIEVED! Average test accuracy: {overall_test_acc*100:.2f}% (>= 80%)")
     else:
-        print(f"\n⚠ Below target (80%). Current test accuracy: {overall_test_acc*100:.2f}%")
-        print(f"  Validation accuracy: {overall_val_acc*100:.2f}% (used for hyperparameter tuning)")
+        print(f"\n⚠ Below target (80%). Current: {overall_test_acc*100:.2f}%")
     
     # Detailed per-subject results
     print(f"\n{'='*50}")

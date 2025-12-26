@@ -141,3 +141,161 @@ def train_model(
             print(f"Epoch [{epoch+1}/{epochs}], Loss: {train_loss:.4f}, Val Acc: {val_acc:.4f}")
     
     return model, best_val_acc
+
+
+def tune_hyperparameters(model, train_loader, val_loader, device='cpu'):
+    """
+    Tune hyperparameters on validation set after weights are frozen.
+    
+    Args:
+        model: Model with frozen backbone
+        train_loader: Training data loader
+        val_loader: Validation data loader
+        device: 'cpu' or 'cuda'
+    
+    Returns:
+        Best validation accuracy and best hyperparameters dict
+    """
+    import torch.nn as nn
+    
+    # Hyperparameter search space
+    learning_rates = [0.0001, 0.0005, 0.001, 0.005]
+    weight_decays = [0.0, 1e-5, 1e-4, 1e-3]
+    
+    # Save initial model state before hyperparameter tuning
+    initial_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+    
+    best_val_acc = 0.0
+    best_hyperparams = {'lr': 0.0001, 'weight_decay': 0.0}
+    
+    print("  Testing hyperparameter combinations on validation set...")
+    total_combinations = len(learning_rates) * len(weight_decays)
+    current_combo = 0
+    
+    for lr in learning_rates:
+        for wd in weight_decays:
+            current_combo += 1
+            
+            # Restore model to initial state for fair comparison
+            model.load_state_dict({k: v.to(device) for k, v in initial_state.items()})
+            
+            # Create fresh optimizer with these hyperparameters
+            optimizer = torch.optim.Adam(
+                filter(lambda p: p.requires_grad, model.parameters()),
+                lr=lr, weight_decay=wd
+            )
+            criterion = nn.CrossEntropyLoss()
+            
+            # Quick training: just a few epochs to evaluate hyperparameters
+            model.train()
+            for _ in range(3):  # 3 epochs for quick evaluation
+                for batch_x, batch_y in train_loader:
+                    batch_x = batch_x.to(device)
+                    batch_y = batch_y.to(device)
+                    optimizer.zero_grad()
+                    outputs = model(batch_x)
+                    loss = criterion(outputs, batch_y)
+                    loss.backward()
+                    optimizer.step()
+            
+            # Evaluate on validation set
+            model.eval()
+            val_correct = 0
+            val_total = 0
+            with torch.no_grad():
+                for batch_x, batch_y in val_loader:
+                    batch_x = batch_x.to(device)
+                    batch_y = batch_y.to(device)
+                    outputs = model(batch_x)
+                    _, predicted = torch.max(outputs.data, 1)
+                    val_total += batch_y.size(0)
+                    val_correct += (predicted == batch_y).sum().item()
+            
+            val_acc = val_correct / val_total
+            
+            print(f"    [{current_combo}/{total_combinations}] LR={lr:.4f}, WD={wd:.0e}, Val Acc: {val_acc:.4f}")
+            
+            if val_acc > best_val_acc:
+                best_val_acc = val_acc
+                best_hyperparams = {'lr': lr, 'weight_decay': wd}
+                # Save best model state
+                best_state = {k: v.cpu().clone() for k, v in model.state_dict().items()}
+    
+    # Restore best model state
+    if 'best_state' in locals():
+        model.load_state_dict({k: v.to(device) for k, v in best_state.items()})
+    else:
+        # Fallback to initial state if no improvement
+        model.load_state_dict({k: v.to(device) for k, v in initial_state.items()})
+    
+    print(f"  Best validation accuracy during tuning: {best_val_acc:.4f} ({best_val_acc*100:.2f}%)")
+    
+    return best_val_acc, best_hyperparams
+
+
+def train_model_with_hyperparams(
+    model, train_loader, val_loader, epochs=20, device='cpu',
+    lr=0.0001, weight_decay=0.0
+):
+    """
+    Train model with specific hyperparameters (for fine-tuning after hyperparameter tuning).
+    
+    Args:
+        model: Model (should have frozen backbone)
+        train_loader: Training data loader
+        val_loader: Validation data loader
+        epochs: Number of training epochs
+        device: 'cpu' or 'cuda'
+        lr: Learning rate
+        weight_decay: Weight decay (L2 regularization)
+    
+    Returns:
+        Trained model and best validation accuracy
+    """
+    import torch.nn as nn
+    
+    criterion = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(
+        filter(lambda p: p.requires_grad, model.parameters()),
+        lr=lr, weight_decay=weight_decay
+    )
+    
+    model.to(device)
+    best_val_acc = 0.0
+    
+    for epoch in range(epochs):
+        # Training phase
+        model.train()
+        train_loss = 0.0
+        for batch_x, batch_y in train_loader:
+            batch_x = batch_x.to(device)
+            batch_y = batch_y.to(device)
+            
+            optimizer.zero_grad()
+            outputs = model(batch_x)
+            loss = criterion(outputs, batch_y)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+        
+        # Validation phase
+        model.eval()
+        val_correct = 0
+        val_total = 0
+        with torch.no_grad():
+            for batch_x, batch_y in val_loader:
+                batch_x = batch_x.to(device)
+                batch_y = batch_y.to(device)
+                outputs = model(batch_x)
+                _, predicted = torch.max(outputs.data, 1)
+                val_total += batch_y.size(0)
+                val_correct += (predicted == batch_y).sum().item()
+        
+        val_acc = val_correct / val_total
+        if val_acc > best_val_acc:
+            best_val_acc = val_acc
+        
+        if (epoch + 1) % 10 == 0:
+            print(f"  Epoch [{epoch+1}/{epochs}], Loss: {train_loss:.4f}, Val Acc: {val_acc:.4f}")
+    
+    return model, best_val_acc

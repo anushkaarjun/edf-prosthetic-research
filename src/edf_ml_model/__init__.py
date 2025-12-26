@@ -20,7 +20,9 @@ from edf_ml_model.preprocessing import (
     EPOCH_WINDOW,
     INFERENCE_BUFFER_SECONDS,
 )
-from edf_ml_model.model import EEGMotorImageryNet, train_model
+from edf_ml_model.model import (
+    EEGMotorImageryNet, train_model, tune_hyperparameters, train_model_with_hyperparams
+)
 from edf_ml_model.inference import InferenceBuffer, predict_with_confidence
 
 __all__ = [
@@ -38,6 +40,8 @@ __all__ = [
     "create_half_second_epochs",
     "EEGMotorImageryNet",
     "train_model",
+    "tune_hyperparameters",
+    "train_model_with_hyperparams",
     "InferenceBuffer",
     "predict_with_confidence",
     "TARGET_SFREQ",
