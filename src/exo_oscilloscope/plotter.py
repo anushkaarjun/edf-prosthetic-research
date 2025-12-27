@@ -35,8 +35,6 @@ class ExoPlotter:
         self.window.setLayout(self.main_layout)
 
         # Create IMU and motor panels
-        self.left_imu = IMUPanel("Left")
-        self.right_imu = IMUPanel("Right")
         self.left_motor = MotorPanel("Left")
         self.right_motor = MotorPanel("Right")
 
@@ -48,11 +46,9 @@ class ExoPlotter:
         logger.debug("Initialize the plot panels.")
 
         # Left side stack
-        self.left_column.addLayout(self.left_imu.layout, stretch=4)
         self.left_column.addLayout(self.left_motor.layout, stretch=1)
 
         # Right side stack
-        self.right_column.addLayout(self.right_imu.layout, stretch=4)
         self.right_column.addLayout(self.right_motor.layout, stretch=1)
 
         # Add columns to main horizontal layout
@@ -66,12 +62,10 @@ class ExoPlotter:
 
     def update_left(self, imu: IMUData, motor: MotorData) -> None:
         """Plot left IMU and motor data."""
-        self.left_imu.update(imu)
         self.left_motor.update(motor)
 
     def update_right(self, imu: IMUData, motor: MotorData) -> None:
         """Plot right IMU and motor data."""
-        self.right_imu.update(imu)
         self.right_motor.update(motor)
 
     def run(
