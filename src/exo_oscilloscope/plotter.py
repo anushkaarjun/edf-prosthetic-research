@@ -9,7 +9,7 @@ from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QVBoxLayout, QWidget
 
 from exo_oscilloscope.config.definitions import APP_NAME
-from exo_oscilloscope.data_classes import IMUData, MotorData
+from exo_oscilloscope.data_classes import IMUData, EDFData
 from exo_oscilloscope.panels import IMUPanel, MotorPanel
 
 
@@ -55,16 +55,16 @@ class ExoPlotter:
         self.main_layout.addLayout(self.left_column)
         self.main_layout.addLayout(self.right_column)
 
-    def update_plots(self, imus: list[IMUData], motors: list[MotorData]) -> None:
+    def update_plots(self, imus: list[IMUData], motors: list[EDFData]) -> None:
         """Update the plots."""
         self.update_left(imus[0], motors[0])
         self.update_right(imus[1], motors[1])
 
-    def update_left(self, imu: IMUData, motor: MotorData) -> None:
+    def update_left(self, imu: IMUData, motor: EDFData) -> None:
         """Plot left IMU and motor data."""
         self.left_motor.update(motor)
 
-    def update_right(self, imu: IMUData, motor: MotorData) -> None:
+    def update_right(self, imu: IMUData, motor: EDFData) -> None:
         """Plot right IMU and motor data."""
         self.right_motor.update(motor)
 

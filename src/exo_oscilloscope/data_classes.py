@@ -87,17 +87,15 @@ class IMUData(BaseData):
 
 
 @dataclass
-class MotorData(BaseData):
+class EDFData(BaseData):
     """Represent a single motor state.
 
-    :param torque: Torque measurement vector in m/s.
-    :param speed: Motor speed measurement vector in m/s.
-    :param position: Motor position measurement vector in m/s.
+    :param probability: Torque measurement vector in m/s.
+    :param signal: Motor speed measurement vector in m/s.
     """
 
-    torque: float
-    speed: float
-    position: float
+    probability: list[float]
+    signal: list[float]
 
 
 @dataclass

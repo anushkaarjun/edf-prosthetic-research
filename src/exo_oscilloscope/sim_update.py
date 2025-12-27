@@ -5,7 +5,7 @@ import time
 import numpy as np
 from loguru import logger
 
-from exo_oscilloscope.data_classes import IMUData, MotorData, Quaternion, Vector3
+from exo_oscilloscope.data_classes import IMUData, EDFData, Quaternion, Vector3
 from exo_oscilloscope.plotter import ExoPlotter
 
 GRAVITY = 9.81
@@ -29,10 +29,9 @@ def make_simulated_update(gui: ExoPlotter, start_time: float):  # pragma: no cov
             quat=Quaternion(np.sin(t + 1), np.sin(t + 2), np.sin(t + 3), np.sin(t + 4)),
             timestamp=t,
         )
-        motor = MotorData(
-            position=np.sin(t),
-            speed=np.sin(t + 0.25),
-            torque=np.sin(t + 0.5),
+        motor = EDFData(
+            signal=np.sin(t + 0.35),
+            probability=np.sin(t + 0.5),
             timestamp=t,
         )
         gui.update_plots(imus=[imu, imu], motors=[motor, motor])

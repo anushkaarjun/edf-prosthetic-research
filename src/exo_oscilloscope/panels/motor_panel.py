@@ -7,7 +7,7 @@ from loguru import logger
 from PySide6 import QtWidgets
 
 from exo_oscilloscope.config.definitions import BUFFER_SIZE, MOTOR_COLORS
-from exo_oscilloscope.data_classes import MotorData
+from exo_oscilloscope.data_classes import EDFData
 from exo_oscilloscope.panels.plot_utils import make_plot
 
 
@@ -23,7 +23,7 @@ class MotorPanel:
         # Discover motor signal names from dataclass
         # (ignore timestamp inherited from BaseData)
         # -----------------------------------------------------------
-        self.signal_names = [f.name for f in fields(MotorData) if f.name != "timestamp"]
+        self.signal_names = [f.name for f in fields(EDFData) if f.name != "timestamp"]
 
         # -----------------------------------------------------------
         # Buffers
@@ -37,7 +37,7 @@ class MotorPanel:
         self.layout = QtWidgets.QVBoxLayout()
 
         # Single combined plot for all motor data
-        self.plot_widget = make_plot(f"{title_prefix} Motor Signals", "Value")
+        self.plot_widget = make_plot(f"{title_prefix} EDF Signals", "Value")
         self.layout.addWidget(self.plot_widget)
 
         # -----------------------------------------------------------
@@ -52,7 +52,7 @@ class MotorPanel:
             self.curves[name] = curve
 
     # ------------------------------------------------------------------
-    def update(self, motor: MotorData) -> None:
+    def update(self, motor: EDFData) -> None:
         """Update this panel with new MotorData."""
         # ---- Shift time buffer ----
         self.time_buf[:-1] = self.time_buf[1:]
@@ -60,9 +60,15 @@ class MotorPanel:
 
         # ---- Update each signal ----
         for name in self.signal_names:
-            buf = self.buffers[name]
-            buf[:-1] = buf[1:]
-            buf[-1] = getattr(motor, name)
+            if name == "signal":
+                buf = self.buffers[name]
+                buf[:-1] = buf[1:]
+                buf[-1] = getattr(motor, name)
+            else:
+                buf = self.buffers[name]
+                buf[:-1] = buf[1:]
+                buf[-1] = getattr(motor, name)
+
 
         # ---- Update curves ----
         for name in self.signal_names:
