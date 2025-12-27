@@ -145,18 +145,28 @@ class EDFParser:
                 f.read(8).strip().decode("ascii", errors="ignore")
                 for _ in range(num_signals)
             ]
-            physical_min = [float(f.read(8).strip().decode("ascii")) for _ in range(num_signals)]
-            physical_max = [float(f.read(8).strip().decode("ascii")) for _ in range(num_signals)]
-            digital_min = [int(f.read(8).strip().decode("ascii")) for _ in range(num_signals)]
-            digital_max = [int(f.read(8).strip().decode("ascii")) for _ in range(num_signals)]
+            physical_min = [
+                float(f.read(8).strip().decode("ascii")) for _ in range(num_signals)
+            ]
+            physical_max = [
+                float(f.read(8).strip().decode("ascii")) for _ in range(num_signals)
+            ]
+            digital_min = [
+                int(f.read(8).strip().decode("ascii")) for _ in range(num_signals)
+            ]
+            digital_max = [
+                int(f.read(8).strip().decode("ascii")) for _ in range(num_signals)
+            ]
             prefiltering = [
-                f.read(80).strip().decode("ascii", errors="ignore") for _ in range(num_signals)
+                f.read(80).strip().decode("ascii", errors="ignore")
+                for _ in range(num_signals)
             ]
             num_samples_per_record = [
                 int(f.read(8).strip().decode("ascii")) for _ in range(num_signals)
             ]
             reserved_signals = [
-                f.read(32).strip().decode("ascii", errors="ignore") for _ in range(num_signals)
+                f.read(32).strip().decode("ascii", errors="ignore")
+                for _ in range(num_signals)
             ]
 
         header = EDFHeader(
@@ -188,7 +198,9 @@ class EDFParser:
             logger.info(f"Read EDF header from {self.filepath}")
             logger.info(f"  Signals: {header.num_signals}")
             logger.info(f"  Records: {header.num_records}")
-            logger.info(f"  Duration: {header.record_duration * header.num_records:.2f} seconds")
+            logger.info(
+                f"  Duration: {header.record_duration * header.num_records:.2f} seconds"
+            )
 
         return header
 
@@ -290,12 +302,9 @@ class EDFParser:
             signal_array = signal_array.astype(np.float32)
         else:
             # Linear scaling: physical = (digital - dig_min) * (phys_max - phys_min) / (dig_max - dig_min) + phys_min
-            signal_array = (
-                (signal_array - dig_min)
-                * (phys_max - phys_min)
-                / (dig_max - dig_min)
-                + phys_min
-            )
+            signal_array = (signal_array - dig_min) * (phys_max - phys_min) / (
+                dig_max - dig_min
+            ) + phys_min
 
         sample_freq = self.header.sample_frequencies[signal_index]
 
@@ -324,7 +333,9 @@ class EDFParser:
 
         for signal_idx in range(self.header.num_signals):
             signal_data, sample_freq = self.read_signal(
-                signal_index=signal_idx, start_record=start_record, num_records=num_records
+                signal_index=signal_idx,
+                start_record=start_record,
+                num_records=num_records,
             )
             all_signals.append(signal_data)
             sample_freqs.append(sample_freq)
@@ -378,7 +389,9 @@ class EDFParser:
                     if current_desc:
                         annotations.append(
                             EDFAnnotation(
-                                onset=current_onset, duration=current_duration, description=current_desc
+                                onset=current_onset,
+                                duration=current_duration,
+                                description=current_desc,
                             )
                         )
                     current_duration = 0.0
@@ -388,7 +401,9 @@ class EDFParser:
                     if current_desc:
                         annotations.append(
                             EDFAnnotation(
-                                onset=current_onset, duration=current_duration, description=current_desc
+                                onset=current_onset,
+                                duration=current_duration,
+                                description=current_desc,
                             )
                         )
                     current_onset = 0.0
@@ -480,4 +495,3 @@ def read_edf(
     info = parser.get_info()
 
     return signals, sample_freqs, info
-

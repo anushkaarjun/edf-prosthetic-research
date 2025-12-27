@@ -17,7 +17,6 @@ def test_edf_parser_initialization(tmp_path: Path) -> None:
 
 def test_edf_header_properties() -> None:
     """Test EDFHeader properties."""
-
     header = EDFHeader(
         version="0",
         patient_id="Test Patient",
@@ -60,4 +59,3 @@ def test_read_edf_convenience_function(tmp_path: Path) -> None:
     fake_file = tmp_path / "test.edf"
     with pytest.raises(FileNotFoundError):
         read_edf(fake_file)
-

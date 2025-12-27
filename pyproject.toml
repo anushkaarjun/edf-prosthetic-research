@@ -19,6 +19,8 @@ dependencies = [
     "PyQt5>=5.15.0",
     "gradio>=3.0.0",
     "plotly>=5.0.0",
+    "pyqtgraph>=0.13.7",
+    "pyside6>=6.10.0"
 ]
 
 [dependency-groups]

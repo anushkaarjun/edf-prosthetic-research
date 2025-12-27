@@ -2,7 +2,6 @@ SHELL := /bin/bash
 
 init:  # ENV SETUP
 	uv sync --all-groups
-	uv run pre-commit install
 	@echo "Environment initialized with uv."
 
 test:
