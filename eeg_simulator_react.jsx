@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, Legend } from 'recharts';
 import { Check } from 'lucide-react';
 
-// Updated motor classes to match Python model (Both Fists instead of Tongue)
-const MOTOR_CLASSES = [
+// Motor classes - will be dynamically set based on model type
+const DEFAULT_MOTOR_CLASSES = [
   { name: 'Left Hand', color: '#3b82f6', bgColor: 'rgba(59, 130, 246, 0.1)' },
   { name: 'Right Hand', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.1)' },
   { name: 'Both Feet', color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.1)' },
@@ -11,14 +11,23 @@ const MOTOR_CLASSES = [
   { name: 'Rest', color: '#6b7280', bgColor: 'rgba(107, 114, 136, 0.1)' }
 ];
 
+// CNN-LSTM classes (3 classes)
+const CNN_LSTM_CLASSES = [
+  { name: 'Open Left Fist', color: '#3b82f6', bgColor: 'rgba(59, 130, 246, 0.1)' },
+  { name: 'Open Right Fist', color: '#ef4444', bgColor: 'rgba(239, 68, 68, 0.1)' },
+  { name: 'Close Fists', color: '#10b981', bgColor: 'rgba(16, 185, 129, 0.1)' }
+];
+
 const EEGSimulator = () => {
   const [eegData, setEegData] = useState([]);
-  const [probabilities, setProbabilities] = useState(MOTOR_CLASSES.map(() => 0.2));
+  const [motorClasses, setMotorClasses] = useState(DEFAULT_MOTOR_CLASSES);
+  const [probabilities, setProbabilities] = useState(DEFAULT_MOTOR_CLASSES.map(() => 0.2));
   const [actualClass, setActualClass] = useState(0);
   const [predictedClass, setPredictedClass] = useState(0);
   const [isCorrect, setIsCorrect] = useState(false);
   const [useAPI, setUseAPI] = useState(false);
   const [apiStatus, setApiStatus] = useState('disconnected');
+  const [modelType, setModelType] = useState(null);
   const [useValidationData, setUseValidationData] = useState(false);
   const [validationDataLoaded, setValidationDataLoaded] = useState(false);
   const [sampleInfo, setSampleInfo] = useState(null);
@@ -47,8 +56,19 @@ const EEGSimulator = () => {
         if (data.model_loaded) {
           setApiStatus('connected');
           setUseAPI(true);
+          setModelType(data.model_type);
+          
+          // Update motor classes based on model type
+          if (data.model_type === 'cnn_lstm') {
+            setMotorClasses(CNN_LSTM_CLASSES);
+            setProbabilities(CNN_LSTM_CLASSES.map(() => 1/3));
+          } else {
+            setMotorClasses(DEFAULT_MOTOR_CLASSES);
+            setProbabilities(DEFAULT_MOTOR_CLASSES.map(() => 0.2));
+          }
         } else {
           setApiStatus('no_model');
+          setModelType(null);
         }
         
         // Try to load validation data
@@ -153,20 +173,13 @@ const EEGSimulator = () => {
           
           // Get probabilities from prediction
           if (data.probabilities) {
-            // Map API classes to our MOTOR_CLASSES order
+            // Map API classes to our motorClasses order
             const apiClasses = data.classes || [];
-            const classMap = {};
-            apiClasses.forEach((cls, idx) => {
-              const ourIdx = MOTOR_CLASSES.findIndex(mc => mc.name === cls);
-              if (ourIdx >= 0) {
-                classMap[idx] = ourIdx;
-              }
-            });
             
-            // Reorder probabilities to match MOTOR_CLASSES
-            newProbs = MOTOR_CLASSES.map((_, idx) => {
-              const apiIdx = apiClasses.findIndex(ac => ac === MOTOR_CLASSES[idx].name);
-              return apiIdx >= 0 ? data.probabilities[apiIdx] : 0.2;
+            // Reorder probabilities to match motorClasses
+            newProbs = motorClasses.map((_, idx) => {
+              const apiIdx = apiClasses.findIndex(ac => ac === motorClasses[idx].name);
+              return apiIdx >= 0 ? data.probabilities[apiIdx] : (1.0 / motorClasses.length);
             });
             
             // Normalize
@@ -178,7 +191,7 @@ const EEGSimulator = () => {
           
           // Set actual class from validation data
           actualLabel = data.actual_label || '';
-          actualIdx = MOTOR_CLASSES.findIndex(mc => mc.name === actualLabel);
+          actualIdx = motorClasses.findIndex(mc => mc.name === actualLabel);
           if (actualIdx < 0) actualIdx = 0;
           setActualClass(actualIdx);
           
@@ -216,7 +229,7 @@ const EEGSimulator = () => {
         }
         
         // Simulated probabilities
-        newProbs = MOTOR_CLASSES.map((_, idx) => {
+        newProbs = motorClasses.map((_, idx) => {
           const base = Math.random() * 0.3;
           const boost = idx === actualClass ? 0.5 + Math.random() * 0.3 : 0;
           return Math.min(base + boost, 1);
@@ -227,7 +240,7 @@ const EEGSimulator = () => {
         
         // Randomly change actual class
         if (Math.random() < 0.01) {
-          actualIdx = Math.floor(Math.random() * MOTOR_CLASSES.length);
+          actualIdx = Math.floor(Math.random() * motorClasses.length);
           setActualClass(actualIdx);
         } else {
           actualIdx = actualClass;
@@ -264,15 +277,15 @@ const EEGSimulator = () => {
     }, 200); // Slower update for validation data (200ms = 5 samples/second)
 
     return () => clearInterval(interval);
-  }, [actualClass, useAPI, apiStatus, useValidationData, validationDataLoaded]);
+  }, [actualClass, useAPI, apiStatus, useValidationData, validationDataLoaded, motorClasses]);
 
   // Prepare radar chart data
-  const radarData = MOTOR_CLASSES.map((cls, idx) => ({
+  const radarData = motorClasses.map((cls, idx) => ({
     class: cls.name,
     confidence: (probabilities[idx] * 100).toFixed(1)
   }));
 
-  const bgColor = MOTOR_CLASSES[predictedClass].bgColor;
+  const bgColor = motorClasses[predictedClass]?.bgColor || 'rgba(107, 114, 136, 0.1)';
 
   // API status indicator
   const getApiStatusColor = () => {
@@ -340,7 +353,7 @@ const EEGSimulator = () => {
         <div className="col-span-1 bg-white rounded-lg shadow-lg p-6">
           <h2 className="text-2xl font-bold mb-6 text-gray-800 text-center">Motor Function Probability</h2>
           <div className="space-y-6">
-            {MOTOR_CLASSES.map((cls, idx) => (
+            {motorClasses.map((cls, idx) => (
               <div key={idx}>
                 <div className="flex justify-between mb-2">
                   <span className="font-semibold text-gray-700">{cls.name}</span>
@@ -370,14 +383,14 @@ const EEGSimulator = () => {
           <div className="mt-8 p-4 bg-gray-50 rounded-lg">
             <div className="flex justify-between mb-2">
               <span className="font-semibold">Actual Class:</span>
-              <span style={{ color: MOTOR_CLASSES[actualClass].color }} className="font-bold">
-                {MOTOR_CLASSES[actualClass].name}
+              <span style={{ color: motorClasses[actualClass]?.color || '#6b7280' }} className="font-bold">
+                {motorClasses[actualClass]?.name || 'Unknown'}
               </span>
             </div>
             <div className="flex justify-between">
               <span className="font-semibold">Predicted Class:</span>
-              <span style={{ color: MOTOR_CLASSES[predictedClass].color }} className="font-bold">
-                {MOTOR_CLASSES[predictedClass].name}
+              <span style={{ color: motorClasses[predictedClass]?.color || '#6b7280' }} className="font-bold">
+                {motorClasses[predictedClass]?.name || 'Unknown'}
               </span>
             </div>
           </div>

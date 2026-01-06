@@ -48,7 +48,7 @@ app.add_middleware(
 
 # Global model storage
 models = {}
-model_type = None  # 'csp_svm' or 'eegnet'
+model_type = None  # 'csp_svm', 'eegnet', or 'cnn_lstm'
 
 # Global validation data storage
 validation_data = {
@@ -114,11 +114,27 @@ def load_eegnet_model(model_path: str, device='cpu'):
     return model, device
 
 
-def preprocess_eeg_data(channels: List[List[float]], sample_rate: float = 250.0):
+def load_cnn_lstm_model(model_path: str, n_channels: int = 64, device='cpu'):
+    """Load CNN-LSTM model from saved file."""
+    sys.path.insert(0, os.path.dirname(__file__))
+    from cnn_lstm_model import CNNLSTM, N_CLASSES, CLASS_NAMES
+    
+    model = CNNLSTM(n_channels=n_channels, n_classes=N_CLASSES)
+    state_dict = torch.load(model_path, map_location=device)
+    model.load_state_dict(state_dict)
+    model.eval()
+    model.to(device)
+    
+    return model, device, CLASS_NAMES
+
+
+def preprocess_eeg_data(channels: List[List[float]], sample_rate: float = 250.0, model_type_param: str = 'eegnet'):
     """
     Preprocess EEG data to match training format.
-    Returns: numpy array of shape (1, n_channels, n_samples)
+    Returns: numpy array formatted for the specified model type.
     """
+    from sklearn.preprocessing import StandardScaler
+    
     # Convert to numpy array
     data = np.array(channels, dtype=np.float32)
     
@@ -126,38 +142,60 @@ def preprocess_eeg_data(channels: List[List[float]], sample_rate: float = 250.0)
     if data.shape[0] > data.shape[1]:
         data = data.T
     
-    # Resample if needed
-    if sample_rate != target_sfreq:
+    # Resample if needed (CNN-LSTM expects 160Hz, others use 250Hz)
+    target_rate = 160.0 if model_type_param == 'cnn_lstm' else target_sfreq
+    
+    if sample_rate != target_rate:
         # Create MNE Raw object for resampling
         info = mne.create_info(ch_names=[f'EEG{i+1}' for i in range(data.shape[0])], 
                               sfreq=sample_rate, ch_types='eeg')
         raw = mne.io.RawArray(data, info, verbose=False)
-        raw.resample(target_sfreq, npad="auto", verbose=False)
+        raw.resample(target_rate, npad="auto", verbose=False)
         data = raw.get_data()
     
-    # Bandpass filter
-    info = mne.create_info(ch_names=[f'EEG{i+1}' for i in range(data.shape[0])], 
-                          sfreq=target_sfreq, ch_types='eeg')
-    raw = mne.io.RawArray(data, info, verbose=False)
-    raw.filter(freq_low, freq_high, verbose=False, fir_design='firwin')
-    data = raw.get_data()
+    # Bandpass filter (for EEGNet/CSP+SVM, not for CNN-LSTM which uses raw signals)
+    if model_type_param != 'cnn_lstm':
+        info = mne.create_info(ch_names=[f'EEG{i+1}' for i in range(data.shape[0])], 
+                              sfreq=target_rate, ch_types='eeg')
+        raw = mne.io.RawArray(data, info, verbose=False)
+        raw.filter(freq_low, freq_high, verbose=False, fir_design='firwin')
+        data = raw.get_data()
     
-    # Crop to 0.5 seconds (125 samples at 250 Hz)
-    if data.shape[1] > 125:
-        data = data[:, :125]
-    elif data.shape[1] < 125:
-        # Pad with zeros if too short
-        padding = np.zeros((data.shape[0], 125 - data.shape[1]), dtype=np.float32)
-        data = np.concatenate([data, padding], axis=1)
+    if model_type_param == 'cnn_lstm':
+        # CNN-LSTM preprocessing: StandardScaler normalization
+        # Reshape for scaler: (n_samples, n_channels) then transpose back
+        data_scaled = StandardScaler().fit_transform(data.T).T
+        
+        # CNN-LSTM expects 320 samples (2 seconds at 160Hz)
+        target_samples = 320
+        if data_scaled.shape[1] > target_samples:
+            data_scaled = data_scaled[:, :target_samples]
+        elif data_scaled.shape[1] < target_samples:
+            # Pad with zeros if too short
+            padding = np.zeros((data_scaled.shape[0], target_samples - data_scaled.shape[1]), dtype=np.float32)
+            data_scaled = np.concatenate([data_scaled, padding], axis=1)
+        
+        # Reshape for CNN-LSTM: (1, 1, n_channels, n_samples)
+        return data_scaled.reshape(1, 1, data_scaled.shape[0], data_scaled.shape[1])
     
-    # Normalize to [-1, 1] range
-    data_max = np.abs(data).max()
-    if data_max > 0:
-        data = data / (data_max + 1e-8)
-    
-    # Reshape for model: (1, n_channels, n_samples) for EEGNet
-    # or (1, n_channels, n_samples) for CSP+SVM
-    return data.reshape(1, data.shape[0], data.shape[1])
+    else:
+        # EEGNet/CSP+SVM preprocessing
+        # Crop to 0.5 seconds (125 samples at 250 Hz)
+        target_samples = 125
+        if data.shape[1] > target_samples:
+            data = data[:, :target_samples]
+        elif data.shape[1] < target_samples:
+            # Pad with zeros if too short
+            padding = np.zeros((data.shape[0], target_samples - data.shape[1]), dtype=np.float32)
+            data = np.concatenate([data, padding], axis=1)
+        
+        # Normalize to [-1, 1] range
+        data_max = np.abs(data).max()
+        if data_max > 0:
+            data = data / (data_max + 1e-8)
+        
+        # Reshape for model: (1, n_channels, n_samples)
+        return data.reshape(1, data.shape[0], data.shape[1])
 
 
 @app.get("/")
@@ -196,8 +234,8 @@ async def predict(request: EEGDataRequest):
         raise HTTPException(status_code=503, detail="Model not loaded. Please load a model first.")
     
     try:
-        # Preprocess data
-        processed_data = preprocess_eeg_data(request.channels, request.sample_rate)
+        # Preprocess data based on model type
+        processed_data = preprocess_eeg_data(request.channels, request.sample_rate, model_type)
         
         if model_type == 'csp_svm':
             # CSP+SVM prediction
@@ -228,6 +266,23 @@ async def predict(request: EEGDataRequest):
                 probs = torch.softmax(output, dim=1)[0].cpu().numpy()
                 predicted_idx = np.argmax(probs)
                 predicted_label = classes[predicted_idx]
+        
+        elif model_type == 'cnn_lstm':
+            # CNN-LSTM prediction
+            model = models['model']
+            device = models['device']
+            classes = models['classes']
+            
+            # Convert to tensor (already in correct shape: 1, 1, n_channels, n_samples)
+            X_tensor = torch.tensor(processed_data, dtype=torch.float32).to(device)
+            
+            # Predict
+            with torch.no_grad():
+                output = model(X_tensor)
+                probs = torch.softmax(output, dim=1)[0].cpu().numpy()
+                predicted_idx = np.argmax(probs)
+                predicted_label = classes[predicted_idx]
+        
         else:
             raise HTTPException(status_code=500, detail="Unknown model type")
         
@@ -277,8 +332,20 @@ async def load_model(model_type_param: str, model_path: str, csp_path: Optional[
             }
             model_type = 'eegnet'
         
+        elif model_type_param == 'cnn_lstm':
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            n_channels = 64  # Default, can be made configurable
+            model, device, classes = load_cnn_lstm_model(model_path, n_channels, device)
+            models = {
+                'model': model,
+                'device': device,
+                'classes': classes,
+                'n_channels': n_channels
+            }
+            model_type = 'cnn_lstm'
+        
         else:
-            raise HTTPException(status_code=400, detail="model_type must be 'csp_svm' or 'eegnet'")
+            raise HTTPException(status_code=400, detail="model_type must be 'csp_svm', 'eegnet', or 'cnn_lstm'")
         
         return {"status": "Model loaded successfully", "model_type": model_type}
     
