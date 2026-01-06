@@ -297,8 +297,14 @@ async def predict(request: EEGDataRequest):
         raise HTTPException(status_code=500, detail=f"Prediction error: {str(e)}")
 
 
+class LoadModelRequest(BaseModel):
+    model_type_param: str
+    model_path: str
+    csp_path: Optional[str] = None
+    n_channels: Optional[int] = 64
+
 @app.post("/load_model")
-async def load_model(model_type_param: str, model_path: str, csp_path: Optional[str] = None):
+async def load_model(request: LoadModelRequest):
     """
     Load a trained model.
     
@@ -311,10 +317,10 @@ async def load_model(model_type_param: str, model_path: str, csp_path: Optional[
     global models, model_type
     
     try:
-        if model_type_param == 'csp_svm':
-            if not csp_path:
+        if request.model_type_param == 'csp_svm':
+            if not request.csp_path:
                 raise HTTPException(status_code=400, detail="csp_path required for CSP+SVM model")
-            csp, svm = load_csp_svm_model(model_path, csp_path)
+            csp, svm = load_csp_svm_model(request.model_path, request.csp_path)
             models = {
                 'csp': csp,
                 'svm': svm,
@@ -322,9 +328,9 @@ async def load_model(model_type_param: str, model_path: str, csp_path: Optional[
             }
             model_type = 'csp_svm'
         
-        elif model_type_param == 'eegnet':
+        elif request.model_type_param == 'eegnet':
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
-            model, device = load_eegnet_model(model_path, device)
+            model, device = load_eegnet_model(request.model_path, device)
             models = {
                 'model': model,
                 'device': device,
@@ -332,10 +338,10 @@ async def load_model(model_type_param: str, model_path: str, csp_path: Optional[
             }
             model_type = 'eegnet'
         
-        elif model_type_param == 'cnn_lstm':
+        elif request.model_type_param == 'cnn_lstm':
             device = 'cuda' if torch.cuda.is_available() else 'cpu'
-            n_channels = 64  # Default, can be made configurable
-            model, device, classes = load_cnn_lstm_model(model_path, n_channels, device)
+            n_channels = request.n_channels or 64
+            model, device, classes = load_cnn_lstm_model(request.model_path, n_channels, device)
             models = {
                 'model': model,
                 'device': device,
@@ -536,8 +542,23 @@ async def simulate():
 
 if __name__ == "__main__":
     import uvicorn
+    import socket
+    
+    # Try to find an available port starting from 8000
+    def find_free_port(start_port=8000):
+        for port in range(start_port, start_port + 10):
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.bind(('', port))
+                    return port
+            except OSError:
+                continue
+        return start_port  # Fallback
+    
+    port = find_free_port(8000)
+    
     print("Starting EEG Motor Imagery API server...")
-    print("API will be available at http://localhost:8000")
-    print("API docs at http://localhost:8000/docs")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    print(f"API will be available at http://localhost:{port}")
+    print(f"API docs at http://localhost:{port}/docs")
+    uvicorn.run(app, host="0.0.0.0", port=port)
 
