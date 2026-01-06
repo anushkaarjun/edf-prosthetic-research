@@ -50,6 +50,15 @@ app.add_middleware(
 models = {}
 model_type = None  # 'csp_svm' or 'eegnet'
 
+# Global validation data storage
+validation_data = {
+    'X': None,
+    'y': None,
+    'y_labels': None,
+    'current_index': 0,
+    'loaded': False
+}
+
 # Request/Response models
 class EEGDataRequest(BaseModel):
     """Request model for EEG data."""
@@ -149,6 +158,24 @@ def preprocess_eeg_data(channels: List[List[float]], sample_rate: float = 250.0)
     # Reshape for model: (1, n_channels, n_samples) for EEGNet
     # or (1, n_channels, n_samples) for CSP+SVM
     return data.reshape(1, data.shape[0], data.shape[1])
+
+
+@app.get("/")
+async def root():
+    """Root endpoint with API information."""
+    return {
+        "message": "EEG Motor Imagery API Server",
+        "status": "running",
+        "endpoints": {
+            "health": "/health",
+            "docs": "/docs",
+            "simulate": "/simulate",
+            "predict": "/predict (POST)",
+            "load_model": "/load_model (POST)"
+        },
+        "model_loaded": len(models) > 0,
+        "model_type": model_type
+    }
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -259,10 +286,153 @@ async def load_model(model_type_param: str, model_path: str, csp_path: Optional[
         raise HTTPException(status_code=500, detail=f"Error loading model: {str(e)}")
 
 
+def load_validation_data(base_path: str, max_subjects: int = 5):
+    """Load validation data from the dataset."""
+    global validation_data
+    
+    try:
+        from sklearn.model_selection import train_test_split
+        
+        # Import data loading function
+        sys.path.insert(0, os.path.dirname(__file__))
+        from run_eegnet import load_subject_data
+        
+        subjects = sorted(glob.glob(f"{base_path}/S*"))[:max_subjects]
+        if len(subjects) == 0:
+            return False
+        
+        print(f"Loading validation data from {len(subjects)} subjects...")
+        
+        all_X = []
+        all_y_labels = []
+        
+        for subj_path in subjects:
+            X_list, y_list = load_subject_data(subj_path)
+            if X_list is not None and len(X_list) > 0:
+                all_X.append(X_list)
+                all_y_labels.extend(y_list)
+        
+        if len(all_X) == 0:
+            return False
+        
+        # Concatenate all data
+        X_all = np.concatenate(all_X, axis=0)
+        
+        # Create label mapping
+        unique_labels = sorted(set(all_y_labels))
+        label_map = {label: idx for idx, label in enumerate(unique_labels)}
+        y = np.array([label_map[v] for v in all_y_labels], dtype=np.int64)
+        
+        # Split into train/validation (80/20)
+        X_train, X_val, y_train, y_val = train_test_split(
+            X_all, y, test_size=0.2, random_state=42, stratify=y
+        )
+        
+        # Store validation data
+        validation_data['X'] = X_val
+        validation_data['y'] = y_val
+        validation_data['y_labels'] = [unique_labels[i] for i in y_val]
+        validation_data['current_index'] = 0
+        validation_data['loaded'] = True
+        validation_data['unique_labels'] = unique_labels
+        
+        print(f"Loaded {len(X_val)} validation samples")
+        return True
+    
+    except Exception as e:
+        print(f"Error loading validation data: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+class LoadValidationDataRequest(BaseModel):
+    base_path: str
+    max_subjects: int = 5
+
+@app.post("/load_validation_data")
+async def load_validation_data_endpoint(request: LoadValidationDataRequest):
+    """Load validation data from dataset."""
+    success = load_validation_data(request.base_path, request.max_subjects)
+    if success:
+        return {
+            "status": "success",
+            "samples_loaded": len(validation_data['X']) if validation_data['loaded'] else 0,
+            "classes": validation_data.get('unique_labels', [])
+        }
+    else:
+        raise HTTPException(status_code=500, detail="Failed to load validation data")
+
+
+@app.get("/get_validation_sample")
+async def get_validation_sample():
+    """Get next validation sample from the dataset."""
+    global validation_data
+    
+    if not validation_data['loaded'] or validation_data['X'] is None:
+        raise HTTPException(status_code=404, detail="Validation data not loaded. Call /load_validation_data first.")
+    
+    # Get current sample
+    idx = validation_data['current_index']
+    X_sample = validation_data['X'][idx]
+    y_label = validation_data['y_labels'][idx]
+    y_idx = validation_data['y'][idx]
+    
+    # Move to next sample (wrap around)
+    validation_data['current_index'] = (idx + 1) % len(validation_data['X'])
+    
+    # Convert to list format (64 channels, 125 samples each)
+    # X_sample shape: (64, 125) - need to convert to list of lists
+    # Each channel should be a list of samples
+    channels = []
+    for ch_idx in range(X_sample.shape[0]):
+        channel_samples = X_sample[ch_idx].tolist()
+        channels.append(channel_samples)  # List of 125 samples per channel
+    
+    # Get prediction if model is loaded
+    probabilities = None
+    predicted_class = None
+    predicted_label = None
+    classes = validation_data['unique_labels']
+    
+    if models:
+        try:
+            # Create request
+            request = EEGDataRequest(channels=channels, sample_rate=250.0)
+            response = await predict(request)
+            probabilities = response.probabilities
+            predicted_class = response.predicted_class
+            predicted_label = response.predicted_label
+        except:
+            pass
+    
+    # If no model or prediction failed, create uniform probabilities
+    if probabilities is None:
+        probabilities = [0.2] * len(classes)
+        predicted_class = 0
+        predicted_label = classes[0]
+    
+    return {
+        "channels": channels,
+        "actual_label": y_label,
+        "actual_class": int(y_idx),
+        "probabilities": probabilities,
+        "predicted_class": predicted_class,
+        "predicted_label": predicted_label,
+        "classes": classes,
+        "sample_index": idx,
+        "total_samples": len(validation_data['X'])
+    }
+
+
 @app.get("/simulate")
 async def simulate():
     """Generate simulated EEG data and predictions for testing."""
-    # Generate random EEG-like data (64 channels, 125 samples)
+    # If validation data is loaded, use it instead
+    if validation_data['loaded']:
+        return await get_validation_sample()
+    
+    # Otherwise generate random EEG-like data (64 channels, 125 samples)
     np.random.seed()
     channels = []
     for _ in range(64):
