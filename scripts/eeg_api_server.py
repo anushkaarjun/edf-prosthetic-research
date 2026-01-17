@@ -48,7 +48,7 @@ app.add_middleware(
 
 # Global model storage
 models = {}
-model_type = None  # 'csp_svm', 'eegnet', 'improved_eegnet', or 'cnn_lstm'
+model_type = None  # 'csp_svm', 'eegnet', 'improved_eegnet', 'cnn_lstm', or 'improved_cnn_lstm'
 
 # Global validation data storage
 validation_data = {
@@ -162,11 +162,25 @@ def load_cnn_lstm_model(model_path: str, n_channels: int = 64, device='cpu'):
     return model, device, CLASS_NAMES
 
 
+def load_improved_cnn_lstm_model(model_path: str, n_channels: int = 64, device='cpu'):
+    """Load Improved CNN-LSTM model from saved file."""
+    sys.path.insert(0, os.path.dirname(__file__))
+    from improved_cnn_lstm_model import ImprovedCNNLSTM, N_CLASSES, CLASS_NAMES
+    
+    model = ImprovedCNNLSTM(n_channels=n_channels, n_classes=N_CLASSES, dropout=0.5)
+    state_dict = torch.load(model_path, map_location=device)
+    model.load_state_dict(state_dict)
+    model.eval()
+    model.to(device)
+    
+    return model, device, CLASS_NAMES
+
+
 def preprocess_eeg_data(channels: List[List[float]], sample_rate: float = 250.0, model_type_param: str = 'eegnet'):
     """
     Preprocess EEG data to match training format.
     Returns: numpy array formatted for the specified model type.
-    Supports: 'eegnet', 'improved_eegnet', 'csp_svm', 'cnn_lstm'
+    Supports: 'eegnet', 'improved_eegnet', 'csp_svm', 'cnn_lstm', 'improved_cnn_lstm'
     """
     """
     Preprocess EEG data to match training format.
@@ -182,7 +196,7 @@ def preprocess_eeg_data(channels: List[List[float]], sample_rate: float = 250.0,
         data = data.T
     
     # Resample if needed (CNN-LSTM expects 160Hz, others use 250Hz)
-    target_rate = 160.0 if model_type_param == 'cnn_lstm' else target_sfreq
+    target_rate = 160.0 if model_type_param in ['cnn_lstm', 'improved_cnn_lstm'] else target_sfreq
     
     if sample_rate != target_rate:
         # Create MNE Raw object for resampling
@@ -193,14 +207,14 @@ def preprocess_eeg_data(channels: List[List[float]], sample_rate: float = 250.0,
         data = raw.get_data()
     
     # Bandpass filter (for EEGNet/CSP+SVM, not for CNN-LSTM which uses raw signals)
-    if model_type_param != 'cnn_lstm':
+    if model_type_param not in ['cnn_lstm', 'improved_cnn_lstm']:
         info = mne.create_info(ch_names=[f'EEG{i+1}' for i in range(data.shape[0])], 
                               sfreq=target_rate, ch_types='eeg')
         raw = mne.io.RawArray(data, info, verbose=False)
         raw.filter(freq_low, freq_high, verbose=False, fir_design='firwin')
         data = raw.get_data()
     
-    if model_type_param == 'cnn_lstm':
+    if model_type_param in ['cnn_lstm', 'improved_cnn_lstm']:
         # CNN-LSTM preprocessing: StandardScaler normalization
         # Reshape for scaler: (n_samples, n_channels) then transpose back
         data_scaled = StandardScaler().fit_transform(data.T).T
@@ -249,7 +263,7 @@ async def root():
             "simulate": "/simulate",
             "predict": "/predict (POST)",
             "load_model": "/load_model (POST)",
-            "supported_models": ["csp_svm", "eegnet", "improved_eegnet", "cnn_lstm"]
+            "supported_models": ["csp_svm", "eegnet", "improved_eegnet", "cnn_lstm", "improved_cnn_lstm"]
         },
         "model_loaded": len(models) > 0,
         "model_type": model_type
@@ -425,8 +439,20 @@ async def load_model(request: LoadModelRequest):
             }
             model_type = 'cnn_lstm'
         
+        elif request.model_type_param == 'improved_cnn_lstm':
+            device = 'cuda' if torch.cuda.is_available() else 'cpu'
+            n_channels = request.n_channels or 64
+            model, device, classes = load_improved_cnn_lstm_model(request.model_path, n_channels, device)
+            models = {
+                'model': model,
+                'device': device,
+                'classes': classes,
+                'n_channels': n_channels
+            }
+            model_type = 'improved_cnn_lstm'
+        
         else:
-            raise HTTPException(status_code=400, detail="model_type must be 'csp_svm', 'eegnet', 'improved_eegnet', or 'cnn_lstm'")
+            raise HTTPException(status_code=400, detail="model_type must be 'csp_svm', 'eegnet', 'improved_eegnet', 'cnn_lstm', or 'improved_cnn_lstm'")
         
         return {"status": "Model loaded successfully", "model_type": model_type}
     

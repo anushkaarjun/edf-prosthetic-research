@@ -113,6 +113,10 @@ load-improved:
 	@echo "Loading ImprovedEEGNet model..."
 	python3 scripts/load_improved_model.py
 
+load-improved-cnn-lstm:
+	@echo "Loading Improved CNN-LSTM model..."
+	python3 scripts/load_improved_cnn_lstm.py
+
 api-health:
 	@echo "Checking API health..."
 	curl -s http://localhost:$(API_PORT)/health | python3 -m json.tool
