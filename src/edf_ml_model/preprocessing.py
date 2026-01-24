@@ -10,9 +10,63 @@ from typing import Tuple, Optional, Dict, Any
 # Configuration constants
 TARGET_SFREQ = 250  # Hz
 FREQ_LOW, FREQ_HIGH = 8.0, 30.0  # Motor imagery band
-EPOCH_WINDOW = 0.5  # 0.5 seconds for training
+EPOCH_WINDOW_MIN = 0.1  # Minimum chunk size: 0.1 seconds
+EPOCH_WINDOW_MAX = 0.5  # Maximum chunk size: 0.5 seconds
+EPOCH_WINDOW = 0.5  # Default: 0.5 seconds for training (backward compatibility)
 BASELINE_WINDOW = (-0.5, 0)  # Baseline period
-INFERENCE_BUFFER_SECONDS = 30  # Minimum 30 seconds for inference
+INFERENCE_BUFFER_SECONDS = 0.5  # Use small chunks (0.5s) instead of 30s buffer
+SMOOTHING_WINDOW_SIZE = 5  # Number of samples for moving average smoothing
+
+
+def smooth_signal(
+    X: np.ndarray, 
+    window_size: int = SMOOTHING_WINDOW_SIZE,
+    method: str = "moving_average"
+) -> np.ndarray:
+    """
+    Apply smoothing/averaging to reduce noise in EEG signals.
+    
+    Args:
+        X: Signal data (n_channels, n_samples) or (n_epochs, n_channels, n_samples)
+        window_size: Size of smoothing window in samples
+        method: 'moving_average' for simple moving average, 'gaussian' for Gaussian smoothing
+    
+    Returns:
+        Smoothed signal with same shape as input
+    """
+    X = X.copy()
+    original_shape = X.shape
+    was_2d = len(X.shape) == 2
+    
+    if was_2d:
+        X = X[np.newaxis, ...]
+    
+    n_epochs, n_channels, n_samples = X.shape
+    X_smooth = np.zeros_like(X)
+    
+    if method == "moving_average":
+        # Simple moving average using convolution
+        kernel = np.ones(window_size) / window_size
+        for i in range(n_epochs):
+            for j in range(n_channels):
+                # Pad edges to maintain length
+                padded = np.pad(X[i, j, :], (window_size // 2, window_size // 2), mode='edge')
+                X_smooth[i, j, :] = np.convolve(padded, kernel, mode='valid')
+    
+    elif method == "gaussian":
+        # Gaussian smoothing using scipy
+        from scipy.ndimage import gaussian_filter1d
+        for i in range(n_epochs):
+            for j in range(n_channels):
+                X_smooth[i, j, :] = gaussian_filter1d(
+                    X[i, j, :], 
+                    sigma=window_size / 3.0  # Convert window size to sigma
+                )
+    
+    if was_2d:
+        X_smooth = X_smooth.squeeze(0)
+    
+    return X_smooth
 
 
 def normalize_signal(X: np.ndarray, method: str = "minmax") -> Tuple[np.ndarray, Dict[str, Any]]:
@@ -204,6 +258,8 @@ def preprocess_raw(
     apply_filter: bool = True,
     clean: bool = True,
     normalize: bool = True,
+    smooth: bool = True,
+    smoothing_window: int = SMOOTHING_WINDOW_SIZE,
 ) -> Tuple[mne.io.Raw, Dict[str, Any]]:
     """
     Complete preprocessing pipeline for raw EEG data.
@@ -212,14 +268,17 @@ def preprocess_raw(
     1. Detect and clean bad data
     2. Apply bandpass filter (8-30 Hz)
     3. Resample to target frequency
-    4. Normalize to [-1, 1]
-    5. Spectral analysis for validation
+    4. Apply smoothing to reduce noise
+    5. Normalize to [-1, 1]
+    6. Spectral analysis for validation
     
     Args:
         raw: MNE Raw object
         apply_filter: Whether to apply bandpass filter
         clean: Whether to clean bad channels
         normalize: Whether to normalize signals
+        smooth: Whether to apply smoothing/averaging
+        smoothing_window: Size of smoothing window in samples
     
     Returns:
         Preprocessed Raw object and preprocessing metadata
@@ -248,11 +307,21 @@ def preprocess_raw(
     else:
         metadata["resampled"] = False
     
-    # Step 4: Spectral analysis
+    # Step 4: Apply smoothing to reduce noise
+    if smooth:
+        data = raw.get_data()
+        data_smooth = smooth_signal(data, window_size=smoothing_window, method="moving_average")
+        raw._data = data_smooth
+        metadata["smoothed"] = True
+        metadata["smoothing_window"] = smoothing_window
+    else:
+        metadata["smoothed"] = False
+    
+    # Step 5: Spectral analysis
     spectral_info = compute_spectral_analysis(raw)
     metadata["spectral_info"] = spectral_info
     
-    # Step 5: Normalize (this modifies the raw data)
+    # Step 6: Normalize (this modifies the raw data)
     if normalize:
         data = raw.get_data()
         data_norm, norm_params = normalize_signal(data, method="minmax")
@@ -271,9 +340,10 @@ def create_half_second_epochs(
     event_id: dict,
     tmin: float = -0.5,
     tmax: float = 0.5,
+    chunk_size: float = None,
 ) -> mne.Epochs:
     """
-    Create 0.5-second epochs for training.
+    Create epochs with configurable chunk size (0.1s to 0.5s) for training.
     
     Args:
         raw: Preprocessed Raw object
@@ -281,10 +351,18 @@ def create_half_second_epochs(
         event_id: Event ID dictionary
         tmin: Start time relative to event (default -0.5 for baseline)
         tmax: End time relative to event (default 0.5 for 0.5s window)
+        chunk_size: Size of chunk in seconds (0.1 to 0.5). If None, uses EPOCH_WINDOW.
     
     Returns:
-        Epochs object with 0.5-second windows
+        Epochs object with specified chunk size windows
     """
+    # Use provided chunk_size or default
+    if chunk_size is None:
+        chunk_size = EPOCH_WINDOW
+    else:
+        # Clamp chunk_size to valid range
+        chunk_size = max(EPOCH_WINDOW_MIN, min(EPOCH_WINDOW_MAX, chunk_size))
+    
     # Create epochs with baseline period
     epochs = mne.Epochs(
         raw,
@@ -297,7 +375,51 @@ def create_half_second_epochs(
         verbose=False,
     )
     
-    # Crop to exactly 0.5 seconds (0 to 0.5s after event)
-    epochs.crop(tmin=0, tmax=EPOCH_WINDOW)
+    # Crop to exactly chunk_size seconds (0 to chunk_size after event)
+    epochs.crop(tmin=0, tmax=chunk_size)
     
     return epochs
+
+
+def create_sliding_chunks(
+    data: np.ndarray,
+    sfreq: int,
+    chunk_size: float = 0.5,
+    overlap: float = 0.0,
+) -> np.ndarray:
+    """
+    Create sliding window chunks from continuous data.
+    
+    Args:
+        data: Continuous data (n_channels, n_samples)
+        sfreq: Sampling frequency in Hz
+        chunk_size: Size of each chunk in seconds (0.1 to 0.5)
+        overlap: Overlap between chunks as fraction (0.0 to 0.9)
+    
+    Returns:
+        Array of chunks (n_chunks, n_channels, n_samples_per_chunk)
+    """
+    # Clamp chunk_size to valid range
+    chunk_size = max(EPOCH_WINDOW_MIN, min(EPOCH_WINDOW_MAX, chunk_size))
+    overlap = max(0.0, min(0.9, overlap))
+    
+    n_channels, n_samples = data.shape
+    samples_per_chunk = int(chunk_size * sfreq)
+    step_size = int(samples_per_chunk * (1 - overlap))
+    
+    chunks = []
+    for start in range(0, n_samples - samples_per_chunk + 1, step_size):
+        chunk = data[:, start:start + samples_per_chunk]
+        chunks.append(chunk)
+    
+    if len(chunks) == 0:
+        # If data is shorter than one chunk, pad it
+        if n_samples < samples_per_chunk:
+            padded = np.zeros((n_channels, samples_per_chunk))
+            padded[:, :n_samples] = data
+            chunks = [padded]
+        else:
+            # Take the last chunk
+            chunks = [data[:, -samples_per_chunk:]]
+    
+    return np.array(chunks)
