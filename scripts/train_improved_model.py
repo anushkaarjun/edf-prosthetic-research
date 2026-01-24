@@ -34,6 +34,8 @@ preprocessing = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(preprocessing)
 create_half_second_epochs = preprocessing.create_half_second_epochs
 normalize_signal = preprocessing.normalize_signal
+preprocess_raw = preprocessing.preprocess_raw
+smooth_signal = preprocessing.smooth_signal
 
 # Import improved models
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src", "edf_ml_model"))
@@ -43,7 +45,9 @@ from improved_model import ImprovedEEGNet, SimpleEEGNet, DeepEEGNet
 target_sfreq = 250
 tmin, tmax = -0.5, 0.5
 freq_low, freq_high = 8.0, 30.0
-EPOCH_WINDOW = 0.5
+EPOCH_WINDOW = 0.5  # Default chunk size (0.1 to 0.5 seconds)
+CHUNK_SIZE_MIN = 0.1  # Minimum chunk size for faster training
+CHUNK_SIZE_MAX = 0.5  # Maximum chunk size
 
 
 class EEGDataset(Dataset):
@@ -59,10 +63,22 @@ class EEGDataset(Dataset):
         return self.X[idx], self.y[idx]
 
 
-def load_validation_data(base_path, max_subjects=5):
-    """Load validation data using the same approach as the API server."""
+def load_validation_data(base_path, max_subjects=5, chunk_size=0.5, apply_smoothing=True):
+    """
+    Load validation data using small chunks (0.1s to 0.5s) with optional smoothing.
+    
+    Args:
+        base_path: Path to data directory
+        max_subjects: Maximum number of subjects to load
+        chunk_size: Size of chunks in seconds (0.1 to 0.5)
+        apply_smoothing: Whether to apply smoothing to reduce noise
+    """
+    # Clamp chunk_size to valid range
+    chunk_size = max(CHUNK_SIZE_MIN, min(CHUNK_SIZE_MAX, chunk_size))
+    
     subjects = sorted(glob.glob(f"{base_path}/S*"))[:max_subjects]
     print(f"Loading data from {len(subjects)} subjects: {[os.path.basename(s) for s in subjects]}")
+    print(f"Using chunk size: {chunk_size}s, Smoothing: {apply_smoothing}")
     
     X_list = []
     y_labels_list = []
@@ -76,7 +92,15 @@ def load_validation_data(base_path, max_subjects=5):
             run = get_run_number(file)
             try:
                 raw = mne.io.read_raw_edf(file, preload=True, verbose=False)
-                raw.filter(freq_low, freq_high, verbose=False, fir_design='firwin')
+                
+                # Use unified preprocessing with smoothing
+                raw, metadata = preprocess_raw(
+                    raw,
+                    apply_filter=True,
+                    clean=True,
+                    normalize=True,
+                    smooth=apply_smoothing,
+                )
                 
                 if raw.info["sfreq"] != target_sfreq:
                     raw.resample(target_sfreq, npad="auto", verbose=False)
@@ -85,7 +109,8 @@ def load_validation_data(base_path, max_subjects=5):
                 if len(event_id) == 0:
                     continue
                 
-                epochs = create_half_second_epochs(raw, events, event_id)
+                # Create epochs with configurable chunk size
+                epochs = create_half_second_epochs(raw, events, event_id, chunk_size=chunk_size)
                 
                 if len(epochs) == 0:
                     continue
@@ -245,14 +270,27 @@ def test_model(model_name, model_class, X_train, X_val, y_train, y_val, n_channe
     return model, val_acc
 
 
-def main(base_path, max_subjects=5, epochs=50, test_all=False):
-    """Main training function."""
+def main(base_path, max_subjects=5, epochs=50, test_all=False, chunk_size=0.5, apply_smoothing=True):
+    """
+    Main training function.
+    
+    Args:
+        base_path: Path to data directory
+        max_subjects: Maximum number of subjects
+        epochs: Number of training epochs
+        test_all: Whether to test all model architectures
+        chunk_size: Size of data chunks in seconds (0.1 to 0.5)
+        apply_smoothing: Whether to apply smoothing to reduce noise
+    """
     print("="*60)
     print("Training Improved Neural Network Models")
     print("="*60)
+    print(f"Configuration: chunk_size={chunk_size}s, smoothing={apply_smoothing}")
     
-    # Load data
-    X_all, y_labels_all, y_all, unique_labels = load_validation_data(base_path, max_subjects)
+    # Load data with configurable chunk size and smoothing
+    X_all, y_labels_all, y_all, unique_labels = load_validation_data(
+        base_path, max_subjects, chunk_size=chunk_size, apply_smoothing=apply_smoothing
+    )
     if X_all is None:
         return
     
@@ -332,8 +370,17 @@ if __name__ == "__main__":
                        help="Number of training epochs")
     parser.add_argument("--test-all", action="store_true",
                        help="Test all model architectures")
+    parser.add_argument("--chunk-size", type=float, default=0.5,
+                       help="Size of data chunks in seconds (0.1 to 0.5, default: 0.5)")
+    parser.add_argument("--no-smoothing", action="store_true",
+                       help="Disable smoothing/averaging (smoothing enabled by default)")
     
     args = parser.parse_args()
+    
+    # Validate chunk size
+    chunk_size = max(CHUNK_SIZE_MIN, min(CHUNK_SIZE_MAX, args.chunk_size))
+    if args.chunk_size != chunk_size:
+        print(f"Warning: chunk_size clamped to {chunk_size}s (valid range: {CHUNK_SIZE_MIN}-{CHUNK_SIZE_MAX})")
     
     if not os.path.exists(args.data_path):
         print(f"ERROR: Data path does not exist: {args.data_path}")
@@ -343,5 +390,7 @@ if __name__ == "__main__":
         base_path=args.data_path,
         max_subjects=args.max_subjects,
         epochs=args.epochs,
-        test_all=args.test_all
+        test_all=args.test_all,
+        chunk_size=chunk_size,
+        apply_smoothing=not args.no_smoothing
     )
