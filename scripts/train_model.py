@@ -14,20 +14,20 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 import mne
 
-# Import from our modules (direct imports to avoid dependency issues)
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+# Import from our modules (repo root = parent of scripts/)
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_repo_root = os.path.join(_script_dir, "..")
+sys.path.insert(0, os.path.join(_repo_root, "src"))
 
-# Import data_utils directly
 import importlib.util
-data_utils_path = os.path.join(os.path.dirname(__file__), "src", "edf_ml_model", "data_utils.py")
+data_utils_path = os.path.join(_repo_root, "src", "edf_ml_model", "data_utils.py")
 spec = importlib.util.spec_from_file_location("data_utils", data_utils_path)
 data_utils = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(data_utils)
 get_run_number = data_utils.get_run_number
 annotation_to_motion = data_utils.annotation_to_motion
 
-# Import preprocessing constants and functions
-preprocessing_path = os.path.join(os.path.dirname(__file__), "src", "edf_ml_model", "preprocessing.py")
+preprocessing_path = os.path.join(_repo_root, "src", "edf_ml_model", "preprocessing.py")
 spec = importlib.util.spec_from_file_location("preprocessing", preprocessing_path)
 preprocessing = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(preprocessing)
@@ -36,9 +36,8 @@ EPOCH_WINDOW = preprocessing.EPOCH_WINDOW
 create_half_second_epochs = preprocessing.create_half_second_epochs
 normalize_signal = preprocessing.normalize_signal
 
-# Import model (requires torch)
 try:
-    model_path = os.path.join(os.path.dirname(__file__), "src", "edf_ml_model", "model.py")
+    model_path = os.path.join(_repo_root, "src", "edf_ml_model", "model.py")
     spec = importlib.util.spec_from_file_location("model", model_path)
     model_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(model_module)

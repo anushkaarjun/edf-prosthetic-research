@@ -5,6 +5,7 @@ Serves predictions from trained CSP+SVM or EEGNet models.
 """
 import os
 import sys
+import time
 import glob
 import numpy as np
 import mne
@@ -71,6 +72,7 @@ class PredictionResponse(BaseModel):
     predicted_class: int
     predicted_label: str
     classes: List[str]
+    latency_ms: Optional[float] = None  # Inference latency in ms (CNN-LSTM/Improved CNN-LSTM)
 
 class HealthResponse(BaseModel):
     """Health check response."""
@@ -149,22 +151,38 @@ def load_improved_eegnet_model(model_path: str, device='cpu', n_classes=4, n_cha
 
 
 def load_cnn_lstm_model(model_path: str, n_channels: int = 64, device='cpu'):
-    """Load CNN-LSTM model from saved file."""
-    sys.path.insert(0, os.path.dirname(__file__))
+    """Load CNN-LSTM model from saved file. Infers n_classes from state_dict for 2-class or 3-class."""
+    _script_dir = os.path.dirname(os.path.abspath(__file__))
+    _repo_root = os.path.join(_script_dir, "..")
+    sys.path.insert(0, _repo_root)
+    sys.path.insert(0, _script_dir)
     from cnn_lstm_model import CNNLSTM, N_CLASSES, CLASS_NAMES
     
-    model = CNNLSTM(n_channels=n_channels, n_classes=N_CLASSES)
     state_dict = torch.load(model_path, map_location=device)
+    # Infer n_classes from state_dict (supports 2-class or 3-class models)
+    fc_weight = state_dict.get("fc.weight")
+    n_classes = int(fc_weight.shape[0]) if fc_weight is not None else N_CLASSES
+    if n_classes == 2:
+        classes = ["Open Right Fist", "Close Fists"]  # 2-class (exclude Open Left Fist)
+    elif n_classes <= len(CLASS_NAMES):
+        classes = CLASS_NAMES[:n_classes]
+    else:
+        classes = [f"Class_{i}" for i in range(n_classes)]
+    
+    model = CNNLSTM(n_channels=n_channels, n_classes=n_classes)
     model.load_state_dict(state_dict)
     model.eval()
     model.to(device)
     
-    return model, device, CLASS_NAMES
+    return model, device, classes
 
 
 def load_improved_cnn_lstm_model(model_path: str, n_channels: int = 64, device='cpu'):
     """Load Improved CNN-LSTM model from saved file."""
-    sys.path.insert(0, os.path.dirname(__file__))
+    _script_dir = os.path.dirname(os.path.abspath(__file__))
+    _repo_root = os.path.join(_script_dir, "..")
+    sys.path.insert(0, _repo_root)
+    sys.path.insert(0, _script_dir)
     from improved_cnn_lstm_model import ImprovedCNNLSTM, N_CLASSES, CLASS_NAMES
     
     model = ImprovedCNNLSTM(n_channels=n_channels, n_classes=N_CLASSES, dropout=0.5)
@@ -288,6 +306,7 @@ async def predict(request: EEGDataRequest):
         raise HTTPException(status_code=503, detail="Model not loaded. Please load a model first.")
     
     try:
+        latency_ms = None
         # Preprocess data based on model type
         processed_data = preprocess_eeg_data(request.channels, request.sample_rate, model_type)
         
@@ -336,7 +355,7 @@ async def predict(request: EEGDataRequest):
                 predicted_label = classes[predicted_idx]
         
         elif model_type == 'cnn_lstm':
-            # CNN-LSTM prediction
+            # CNN-LSTM prediction with latency measurement
             model = models['model']
             device = models['device']
             classes = models['classes']
@@ -344,12 +363,32 @@ async def predict(request: EEGDataRequest):
             # Convert to tensor (already in correct shape: 1, 1, n_channels, n_samples)
             X_tensor = torch.tensor(processed_data, dtype=torch.float32).to(device)
             
-            # Predict
+            # Predict with latency measurement
+            start_time = time.perf_counter()
             with torch.no_grad():
                 output = model(X_tensor)
                 probs = torch.softmax(output, dim=1)[0].cpu().numpy()
                 predicted_idx = np.argmax(probs)
                 predicted_label = classes[predicted_idx]
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            print(f"[CNN-LSTM] Inference latency: {latency_ms:.2f} ms")
+        
+        elif model_type == 'improved_cnn_lstm':
+            # Improved CNN-LSTM prediction with latency measurement
+            model = models['model']
+            device = models['device']
+            classes = models['classes']
+            
+            X_tensor = torch.tensor(processed_data, dtype=torch.float32).to(device)
+            
+            start_time = time.perf_counter()
+            with torch.no_grad():
+                output = model(X_tensor)
+                probs = torch.softmax(output, dim=1)[0].cpu().numpy()
+                predicted_idx = np.argmax(probs)
+                predicted_label = classes[predicted_idx]
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            print(f"[Improved CNN-LSTM] Inference latency: {latency_ms:.2f} ms")
         
         else:
             raise HTTPException(status_code=500, detail="Unknown model type")
@@ -358,7 +397,8 @@ async def predict(request: EEGDataRequest):
             probabilities=probs.tolist(),
             predicted_class=int(predicted_idx),
             predicted_label=predicted_label,
-            classes=classes
+            classes=classes,
+            latency_ms=latency_ms
         )
     
     except Exception as e:
@@ -467,8 +507,12 @@ def load_validation_data(base_path: str, max_subjects: int = 5):
     try:
         from sklearn.model_selection import train_test_split
         
-        # Import data loading function
-        sys.path.insert(0, os.path.dirname(__file__))
+        # Ensure repo root and src are on path for run_eegnet import
+        _script_dir = os.path.dirname(os.path.abspath(__file__))
+        _repo_root = os.path.join(_script_dir, "..")
+        for p in [_repo_root, os.path.join(_repo_root, "src"), _script_dir]:
+            if p not in sys.path:
+                sys.path.insert(0, p)
         from run_eegnet import load_subject_data
         
         subjects = sorted(glob.glob(f"{base_path}/S*"))[:max_subjects]
@@ -481,10 +525,10 @@ def load_validation_data(base_path: str, max_subjects: int = 5):
         all_y_labels = []
         
         for subj_path in subjects:
-            X_list, y_list = load_subject_data(subj_path)
-            if X_list is not None and len(X_list) > 0:
-                all_X.append(X_list)
-                all_y_labels.extend(y_list)
+            data = load_subject_data(subj_path)
+            if data is not None and len(data["X"]) > 0:
+                all_X.append(data["X"])
+                all_y_labels.extend(data["y"])
         
         if len(all_X) == 0:
             return False

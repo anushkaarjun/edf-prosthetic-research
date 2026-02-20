@@ -20,9 +20,11 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Import data utilities
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_repo_root = os.path.join(_script_dir, "..")
+sys.path.insert(0, os.path.join(_repo_root, "src"))
 import importlib.util
-data_utils_path = os.path.join(os.path.dirname(__file__), "src", "edf_ml_model", "data_utils.py")
+data_utils_path = os.path.join(_repo_root, "src", "edf_ml_model", "data_utils.py")
 spec = importlib.util.spec_from_file_location("data_utils", data_utils_path)
 data_utils = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(data_utils)
@@ -30,7 +32,7 @@ get_run_number = data_utils.get_run_number
 annotation_to_motion = data_utils.annotation_to_motion
 
 # Import preprocessing
-preprocessing_path = os.path.join(os.path.dirname(__file__), "src", "edf_ml_model", "preprocessing.py")
+preprocessing_path = os.path.join(_repo_root, "src", "edf_ml_model", "preprocessing.py")
 spec = importlib.util.spec_from_file_location("preprocessing", preprocessing_path)
 preprocessing = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(preprocessing)
@@ -52,13 +54,18 @@ freq_low, freq_high = 8.0, 30.0
 EPOCH_WINDOW = 0.5
 
 
-def load_validation_data(base_path, max_subjects=5):
+def load_validation_data(base_path, max_subjects=5, exclude_classes=None):
     """
     Load validation data using the same approach as the API server.
     Returns X (n_samples, n_channels, n_times), y (labels), y_idx (numeric labels).
+    exclude_classes: list of labels to exclude (e.g. ["Both Feet"] for 3-class).
     """
+    if exclude_classes is None:
+        exclude_classes = []
     subjects = sorted(glob.glob(f"{base_path}/S*"))[:max_subjects]
     print(f"Loading data from {len(subjects)} subjects: {[os.path.basename(s) for s in subjects]}")
+    if exclude_classes:
+        print(f"Excluding classes: {exclude_classes}")
     
     X_list = []
     y_labels_list = []
@@ -97,7 +104,7 @@ def load_validation_data(base_path, max_subjects=5):
                 
                 # Map annotations to motion labels
                 y_mapped = [annotation_to_motion(c, run) for c in y_raw]
-                valid_idx = [i for i, v in enumerate(y_mapped) if v != "Unknown"]
+                valid_idx = [i for i, v in enumerate(y_mapped) if v != "Unknown" and v not in exclude_classes]
                 
                 if len(valid_idx) > 0:
                     X_list.append(X[valid_idx])
@@ -149,7 +156,7 @@ def train_eegnet(X_train, X_val, y_train, y_val, n_channels, n_classes, device, 
     """Train EEGNet model."""
     # Import model directly to avoid loguru dependency
     import importlib.util
-    model_path = os.path.join(os.path.dirname(__file__), "src", "edf_ml_model", "model.py")
+    model_path = os.path.join(_repo_root, "src", "edf_ml_model", "model.py")
     spec = importlib.util.spec_from_file_location("model", model_path)
     model_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(model_module)
@@ -291,14 +298,16 @@ def train_csp_svm(X_train, X_val, y_train, y_val, n_classes, unique_labels):
     return csp, svm, val_acc
 
 
-def main(base_path, max_subjects=5, train_eegnet_flag=True, train_csp_svm_flag=True):
+def main(base_path, max_subjects=5, train_eegnet_flag=True, train_csp_svm_flag=True, exclude_classes=None):
     """Main training function."""
+    if exclude_classes is None:
+        exclude_classes = []
     print("="*60)
     print("Training Models on Validation Data")
     print("="*60)
     
     # Load data
-    X_all, y_labels_all, y_all, unique_labels = load_validation_data(base_path, max_subjects)
+    X_all, y_labels_all, y_all, unique_labels = load_validation_data(base_path, max_subjects, exclude_classes=exclude_classes)
     if X_all is None:
         return
     
@@ -363,6 +372,8 @@ if __name__ == "__main__":
                        help="Train CSP+SVM model")
     parser.add_argument("--no-csp-svm", dest="csp_svm", action="store_false",
                        help="Skip CSP+SVM training")
+    parser.add_argument("--exclude-both-feet", action="store_true",
+                       help="Exclude 'Both Feet' class (train on 3 classes: Both Fists, Left Hand, Right Hand)")
     
     args = parser.parse_args()
     
@@ -370,9 +381,11 @@ if __name__ == "__main__":
         print(f"ERROR: Data path does not exist: {args.data_path}")
         sys.exit(1)
     
+    exclude_classes = ["Both Feet"] if args.exclude_both_feet else []
     main(
         base_path=args.data_path,
         max_subjects=args.max_subjects,
         train_eegnet_flag=args.eegnet,
-        train_csp_svm_flag=args.csp_svm
+        train_csp_svm_flag=args.csp_svm,
+        exclude_classes=exclude_classes,
     )

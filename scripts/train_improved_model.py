@@ -63,7 +63,52 @@ class EEGDataset(Dataset):
         return self.X[idx], self.y[idx]
 
 
-def load_validation_data(base_path, max_subjects=5, chunk_size=0.5, apply_smoothing=True):
+def _augment_epoch(X_epoch: np.ndarray, noise_std: float = 0.02, scale_std: float = 0.1, max_shift: int = 5) -> np.ndarray:
+    """
+    Apply random augmentation to a single epoch: time shift, Gaussian noise, channel-wise scale.
+    """
+    X = X_epoch.copy()
+    n_chans, n_samples = X.shape
+    
+    # Random time shift (circular)
+    if max_shift > 0:
+        shift = np.random.randint(-max_shift, max_shift + 1)
+        if shift != 0:
+            X = np.roll(X, shift, axis=1)
+    
+    # Gaussian noise
+    if noise_std > 0:
+        X = X + noise_std * np.random.randn(*X.shape).astype(np.float32)
+    
+    # Per-channel scaling (multiplicative)
+    if scale_std > 0:
+        scale = 1.0 + scale_std * np.random.randn(n_chans).astype(np.float32)
+        X = X * scale[:, np.newaxis]
+    
+    return X.astype(np.float32)
+
+
+class AugmentedEEGDataset(Dataset):
+    """EEG dataset with on-the-fly augmentation for training (improves generalization and accuracy)."""
+    def __init__(self, X, y, augment=True, noise_std=0.02, scale_std=0.1, max_shift=5):
+        self.X = X if isinstance(X, np.ndarray) else np.array(X)
+        self.y = torch.LongTensor(y)
+        self.augment = augment
+        self.noise_std = noise_std
+        self.scale_std = scale_std
+        self.max_shift = max_shift
+    
+    def __len__(self):
+        return len(self.y)
+    
+    def __getitem__(self, idx):
+        x = self.X[idx]
+        if self.augment:
+            x = _augment_epoch(x, self.noise_std, self.scale_std, self.max_shift)
+        return torch.FloatTensor(x), self.y[idx]
+
+
+def load_validation_data(base_path, max_subjects=5, chunk_size=0.5, apply_smoothing=True, exclude_classes=None):
     """
     Load validation data using small chunks (0.1s to 0.5s) with optional smoothing.
     
@@ -72,13 +117,18 @@ def load_validation_data(base_path, max_subjects=5, chunk_size=0.5, apply_smooth
         max_subjects: Maximum number of subjects to load
         chunk_size: Size of chunks in seconds (0.1 to 0.5)
         apply_smoothing: Whether to apply smoothing to reduce noise
+        exclude_classes: List of class labels to exclude (e.g. ["Both Feet"] for 3-class training)
     """
+    if exclude_classes is None:
+        exclude_classes = []
     # Clamp chunk_size to valid range
     chunk_size = max(CHUNK_SIZE_MIN, min(CHUNK_SIZE_MAX, chunk_size))
     
     subjects = sorted(glob.glob(f"{base_path}/S*"))[:max_subjects]
     print(f"Loading data from {len(subjects)} subjects: {[os.path.basename(s) for s in subjects]}")
     print(f"Using chunk size: {chunk_size}s, Smoothing: {apply_smoothing}")
+    if exclude_classes:
+        print(f"Excluding classes: {exclude_classes}")
     
     X_list = []
     y_labels_list = []
@@ -119,7 +169,10 @@ def load_validation_data(base_path, max_subjects=5, chunk_size=0.5, apply_smooth
                 y_raw = epochs.events[:, -1]
                 
                 y_mapped = [annotation_to_motion(c, run) for c in y_raw]
-                valid_idx = [i for i, v in enumerate(y_mapped) if v != "Unknown"]
+                valid_idx = [
+                    i for i, v in enumerate(y_mapped)
+                    if v != "Unknown" and v not in exclude_classes
+                ]
                 
                 if len(valid_idx) > 0:
                     X_list.append(X[valid_idx])
@@ -226,8 +279,8 @@ def train_model(model, train_loader, val_loader, device, epochs=50, lr=0.001, we
     return model, best_val_acc
 
 
-def test_model(model_name, model_class, X_train, X_val, y_train, y_val, n_channels, n_classes, device, epochs=50):
-    """Test a specific model architecture."""
+def test_model(model_name, model_class, X_train, X_val, y_train, y_val, n_channels, n_classes, device, epochs=80, use_augmentation=True):
+    """Test a specific model architecture. Uses augmentation by default to improve accuracy."""
     print(f"\n{'='*60}")
     print(f"Testing {model_name}")
     print(f"{'='*60}")
@@ -236,14 +289,16 @@ def test_model(model_name, model_class, X_train, X_val, y_train, y_val, n_channe
     X_train_norm, _ = normalize_signal(X_train, method="minmax")
     X_val_norm, _ = normalize_signal(X_val, method="minmax")
     
-    # Create model
+    # Create model (slightly lower dropout for ImprovedEEGNet to help reach higher accuracy)
     if model_name == "SimpleEEGNet":
         model = model_class(n_channels=n_channels, n_classes=n_classes, n_samples=X_train.shape[2])
+    elif model_name == "ImprovedEEGNet":
+        model = model_class(n_channels=n_channels, n_classes=n_classes, n_samples=X_train.shape[2], dropout_rate=0.4)
     else:
         model = model_class(n_channels=n_channels, n_classes=n_classes, n_samples=X_train.shape[2])
     
-    # Create data loaders
-    train_dataset = EEGDataset(X_train_norm, y_train)
+    # Create data loaders: augmented dataset for training (improves accuracy), plain for val
+    train_dataset = AugmentedEEGDataset(X_train_norm, y_train, augment=use_augmentation) if use_augmentation else EEGDataset(X_train_norm, y_train)
     val_dataset = EEGDataset(X_val_norm, y_val)
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
@@ -270,7 +325,7 @@ def test_model(model_name, model_class, X_train, X_val, y_train, y_val, n_channe
     return model, val_acc
 
 
-def main(base_path, max_subjects=5, epochs=50, test_all=False, chunk_size=0.5, apply_smoothing=True):
+def main(base_path, max_subjects=10, epochs=80, test_all=False, chunk_size=0.5, apply_smoothing=True, use_augmentation=True, exclude_classes=None):
     """
     Main training function.
     
@@ -281,15 +336,21 @@ def main(base_path, max_subjects=5, epochs=50, test_all=False, chunk_size=0.5, a
         test_all: Whether to test all model architectures
         chunk_size: Size of data chunks in seconds (0.1 to 0.5)
         apply_smoothing: Whether to apply smoothing to reduce noise
+        use_augmentation: Whether to use data augmentation during training (recommended for higher accuracy)
+        exclude_classes: List of class labels to exclude (e.g. ["Both Feet"] for 3-class)
     """
+    if exclude_classes is None:
+        exclude_classes = []
     print("="*60)
     print("Training Improved Neural Network Models")
     print("="*60)
-    print(f"Configuration: chunk_size={chunk_size}s, smoothing={apply_smoothing}")
+    print(f"Configuration: chunk_size={chunk_size}s, smoothing={apply_smoothing}, augmentation={use_augmentation}")
+    if exclude_classes:
+        print(f"Excluding classes: {exclude_classes} (training on {4 - len(exclude_classes)} classes)")
     
     # Load data with configurable chunk size and smoothing
     X_all, y_labels_all, y_all, unique_labels = load_validation_data(
-        base_path, max_subjects, chunk_size=chunk_size, apply_smoothing=apply_smoothing
+        base_path, max_subjects, chunk_size=chunk_size, apply_smoothing=apply_smoothing, exclude_classes=exclude_classes
     )
     if X_all is None:
         return
@@ -323,7 +384,7 @@ def main(base_path, max_subjects=5, epochs=50, test_all=False, chunk_size=0.5, a
             try:
                 model, acc = test_model(
                     model_name, model_class, X_train, X_val, y_train, y_val,
-                    n_channels, n_classes, device, epochs=epochs
+                    n_channels, n_classes, device, epochs=epochs, use_augmentation=use_augmentation
                 )
                 results[model_name] = acc
                 
@@ -339,10 +400,10 @@ def main(base_path, max_subjects=5, epochs=50, test_all=False, chunk_size=0.5, a
                 traceback.print_exc()
     else:
         # Test only ImprovedEEGNet (recommended)
-            model, acc = test_model(
-                "ImprovedEEGNet", ImprovedEEGNet, X_train, X_val, y_train, y_val,
-                n_channels, n_classes, device, epochs=epochs
-            )
+        model, acc = test_model(
+            "ImprovedEEGNet", ImprovedEEGNet, X_train, X_val, y_train, y_val,
+            n_channels, n_classes, device, epochs=epochs, use_augmentation=use_augmentation
+        )
         results["ImprovedEEGNet"] = acc
         os.makedirs('../models', exist_ok=True)
         model_path = '../models/best_improved_eegnet.pth'
@@ -364,16 +425,20 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train improved EEG models")
     parser.add_argument("--data-path", type=str, required=True,
                        help="Path to EDF data directory")
-    parser.add_argument("--max-subjects", type=int, default=5,
-                       help="Maximum number of subjects to process")
-    parser.add_argument("--epochs", type=int, default=50,
-                       help="Number of training epochs")
+    parser.add_argument("--max-subjects", type=int, default=10,
+                       help="Maximum number of subjects to process (more subjects can improve accuracy)")
+    parser.add_argument("--epochs", type=int, default=80,
+                       help="Number of training epochs (more epochs can improve accuracy)")
     parser.add_argument("--test-all", action="store_true",
                        help="Test all model architectures")
     parser.add_argument("--chunk-size", type=float, default=0.5,
                        help="Size of data chunks in seconds (0.1 to 0.5, default: 0.5)")
     parser.add_argument("--no-smoothing", action="store_true",
                        help="Disable smoothing/averaging (smoothing enabled by default)")
+    parser.add_argument("--no-augmentation", action="store_true",
+                       help="Disable data augmentation during training (augmentation helps reach higher accuracy)")
+    parser.add_argument("--exclude-both-feet", action="store_true",
+                       help="Exclude 'Both Feet' class (train on 3 classes: Both Fists, Left Hand, Right Hand) to improve accuracy")
     
     args = parser.parse_args()
     
@@ -386,11 +451,14 @@ if __name__ == "__main__":
         print(f"ERROR: Data path does not exist: {args.data_path}")
         sys.exit(1)
     
+    exclude_classes = ["Both Feet"] if args.exclude_both_feet else []
     main(
         base_path=args.data_path,
         max_subjects=args.max_subjects,
         epochs=args.epochs,
         test_all=args.test_all,
         chunk_size=chunk_size,
-        apply_smoothing=not args.no_smoothing
+        apply_smoothing=not args.no_smoothing,
+        use_augmentation=not args.no_augmentation,
+        exclude_classes=exclude_classes,
     )

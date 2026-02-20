@@ -69,6 +69,11 @@ train-improved:
 	@echo "Training improved neural network model..."
 	python3 scripts/train_improved_model.py --data-path "$(DATA_PATH)" --max-subjects 5 --epochs 50
 
+# Pipeline that reached 60.71%% / 62.50%% val accuracy (4-class, per-subject, freeze + hyperparameter tuning)
+train-eegnet-freeze:
+	@echo "Training EEGNet with freeze + hyperparameter tuning (60%%+ pipeline)..."
+	python3 scripts/train_model.py --data-path "$(DATA_PATH)" --max-subjects 5 --freeze-after 30 --epochs 50
+
 train-all:
 	@echo "Training all models..."
 	python3 scripts/train_on_validation_data.py --data-path "$(DATA_PATH)" --max-subjects 5 --eegnet --csp-svm

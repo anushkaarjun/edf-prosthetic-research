@@ -126,9 +126,15 @@ class ImprovedCNNLSTMDataset(Dataset):
         if len(self.X.shape) == 3:
             self.X = self.X.unsqueeze(1)  # Add channel dimension
         
-        # Convert labels to indices
+        # Convert labels to indices (accept int or str)
         label_to_idx = {label: idx for idx, label in enumerate(CLASS_NAMES)}
-        self.y = torch.LongTensor([label_to_idx[label] for label in y])
+        indices = []
+        for label in y:
+            if isinstance(label, (int, np.integer)):
+                indices.append(int(label))
+            else:
+                indices.append(label_to_idx[label])
+        self.y = torch.LongTensor(indices)
         
         self.scaler = scaler
     
@@ -140,12 +146,12 @@ class ImprovedCNNLSTMDataset(Dataset):
 
 
 def compute_class_weights(y_train):
-    """Compute class weights for imbalanced dataset."""
+    """Compute class weights for imbalanced dataset. y_train can be int indices or str labels."""
     from collections import Counter
     counts = Counter(y_train)
     total = len(y_train)
     weights = {cls: total / (len(CLASS_NAMES) * count) for cls, count in counts.items()}
-    return torch.FloatTensor([weights[CLASS_NAMES[i]] for i in range(N_CLASSES)])
+    return torch.FloatTensor([weights[i] for i in range(N_CLASSES)])
 
 
 def train_improved_cnn_lstm(X_train, y_train, X_val, y_val, n_channels, n_classes, epochs=50, device='cpu'):
@@ -169,7 +175,7 @@ def train_improved_cnn_lstm(X_train, y_train, X_val, y_val, n_channels, n_classe
     
     # Learning rate scheduler
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer, mode='max', factor=0.5, patience=5, verbose=True
+        optimizer, mode='max', factor=0.5, patience=5
     )
     
     # Early stopping

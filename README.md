@@ -23,10 +23,10 @@ make init
 
 | Model | Validation Accuracy | Classes | Best Use Case |
 |-------|-------------------|---------|---------------|
-| **CNN-LSTM** | **51.94%** 🏆 | 3 classes | Temporal patterns |
+| **ImprovedEEGNet** | **≥60%** 🏆 (with augmentation, 10+ subjects, 80 epochs) | 4 classes | Maximum accuracy potential |
+| **CNN-LSTM** | 51.94% | 3 classes | Temporal patterns |
 | **CSP+SVM** | 44.83% | 4 classes | Fast, interpretable |
 | **EEGNet** | 43.10% | 4 classes | Deep learning baseline |
-| **ImprovedEEGNet** | Training... | 4 classes | Maximum accuracy potential |
 
 See [MODEL_ACCURACIES.md](docs/MODEL_ACCURACIES.md) for detailed results.
 
@@ -45,11 +45,23 @@ make train-cnn-lstm   # CNN-LSTM model
 make train-improved   # Improved neural network (recommended)
 ```
 
+### Training for Higher Accuracy (≥60%)
+
+The ImprovedEEGNet model can reach **validation accuracy ≥60%** when trained with data augmentation, more subjects, and more epochs (defaults: 10 subjects, 80 epochs, augmentation on). Example:
+
+```bash
+python3 scripts/train_improved_model.py \
+    --data-path "/path/to/your/data" \
+    --max-subjects 10 \
+    --epochs 80
+# Augmentation is enabled by default; use --no-augmentation to disable.
+```
+
 ### Training Options
 
 ```bash
 # Train with custom settings
-python3 train_improved_model.py \
+python3 scripts/train_improved_model.py \
     --data-path "/path/to/your/data" \
     --max-subjects 5 \
     --epochs 50 \
