@@ -1,0 +1,52 @@
+[
+  {
+    "model": "CNN-LSTM",
+    "accuracy": 0.44,
+    "balanced_accuracy": 0.5,
+    "f1_rest": 0,
+    "f1_right": 0.6111111111111112,
+    "macro_f1": 0.3055555555555556,
+    "latency_ms": 16.17
+  },
+  {
+    "model": "2-class CNN-LSTM",
+    "accuracy": 0.9848484848484849,
+    "test_accuracy": 0.946969696969697,
+    "balanced_accuracy": 0.9848484848484849,
+    "f1_rest": 0.9850746268656716,
+    "f1_right": 0.9846153846153847,
+    "macro_f1": 0.9848450057405281,
+    "latency_ms": 17.18
+  },
+  {
+    "model": "3-class CNN-LSTM",
+    "train_accuracy": 0.8152610441767069,
+    "accuracy": 0.5450755601875977,
+    "test_accuracy": 0.5348484848484848,
+    "balanced_accuracy": 0.5347556660566152,
+    "macro_f1": 0.5169753647070997,
+    "f1_rest": 0.6447483270293861,
+    "f1_left": 0.5085411348910269,
+    "f1_right": 0.39763663220088624,
+    "latency_ms": 29.17,
+    "test_confusion_matrix": [
+      [
+        2266,
+        1184,
+        510
+      ],
+      [
+        371,
+        1323,
+        292
+      ],
+      [
+        472,
+        855,
+        647
+      ]
+    ],
+    "n_test_subjects": 22,
+    "n_test_trials": 7920
+  }
+]

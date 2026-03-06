@@ -1,0 +1,97 @@
+.app {
+  min-height: 100vh;
+  padding: 0 1rem 1rem;
+  background: #0f0f12;
+  color: #e4e4e7;
+}
+
+.banner {
+  padding: 0.5rem 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+  border-radius: 0.5rem;
+}
+
+.banner.connected {
+  background: #fef08a;
+  color: #713f12;
+}
+
+.banner.disconnected {
+  background: #3f3f46;
+  color: #a1a1aa;
+}
+
+.error-banner {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.main.three-panel {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  max-width: 1200px;
+  margin: 0 auto 1rem;
+  align-items: flex-start;
+}
+
+.controls {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.btn-record {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  background: #3b82f6;
+  color: #fff;
+}
+
+.btn-record:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.btn-record:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 1px solid #3f3f46;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  background: transparent;
+  color: #e4e4e7;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #27272a;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.panel-title {
+  margin: 0 0 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #e4e4e7;
+}

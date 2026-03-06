@@ -1,0 +1,58 @@
+.prediction-history-panel {
+  background: #18181b;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  border: 1px solid #27272a;
+  min-width: 220px;
+}
+
+.history-meta {
+  margin: 0 0 0.5rem;
+  font-size: 0.7rem;
+  color: #71717a;
+}
+
+.history-table-wrap {
+  overflow: auto;
+  max-height: 280px;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.history-table th,
+.history-table td {
+  padding: 0.35rem 0.5rem;
+  text-align: left;
+  border-bottom: 1px solid #27272a;
+}
+
+.history-table th {
+  color: #71717a;
+  font-weight: 600;
+}
+
+.history-table tbody tr.correct {
+  color: #86efac;
+}
+
+.history-table tbody tr.incorrect {
+  color: #fca5a5;
+}
+
+.history-empty {
+  color: #71717a;
+  font-style: italic;
+  padding: 1rem !important;
+}
+
+.history-accuracy {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: #a1a1aa;
+  border-top: 1px solid #27272a;
+  padding-top: 0.5rem;
+}

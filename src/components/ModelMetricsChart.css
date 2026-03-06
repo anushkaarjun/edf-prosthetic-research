@@ -1,0 +1,108 @@
+.metrics-chart-panel {
+  background: #18181b;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  border: 1px solid #27272a;
+  margin-top: 1rem;
+  width: 100%;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.metrics-loading,
+.metrics-error {
+  margin: 0;
+  color: #71717a;
+  font-size: 0.9rem;
+}
+
+.metrics-error {
+  color: #f87171;
+}
+
+.metrics-empty {
+  margin: 0;
+  color: #71717a;
+  font-size: 0.85rem;
+}
+
+.metrics-empty code {
+  background: #27272a;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  font-size: 0.8rem;
+}
+
+.metrics-table-wrap {
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.metrics-table th,
+.metrics-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: right;
+  border-bottom: 1px solid #27272a;
+}
+
+.metrics-table th {
+  color: #a1a1aa;
+  font-weight: 600;
+}
+
+.metrics-table td.model-name {
+  text-align: left;
+  font-weight: 500;
+  color: #e4e4e7;
+}
+
+.metrics-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.metric-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.metric-bar-label {
+  flex: 0 0 160px;
+  font-size: 0.75rem;
+  color: #71717a;
+}
+
+.metric-bar-track {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+  height: 22px;
+  min-width: 0;
+}
+
+.metric-bar-segment {
+  background: #27272a;
+  border-radius: 4px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.metric-bar {
+  height: 100%;
+  min-width: 2px;
+  border-radius: 2px;
+  transition: width 0.2s ease;
+}
+
+.metric-bar--latency {
+  /* Latency: bar length = relative latency; same track shows all models */
+}
